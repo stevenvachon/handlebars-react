@@ -1,0 +1,49 @@
+{
+  "name": "handlebars-react",
+  "description": "Compile Handlebars templates to React.",
+  "version": "0.0.1",
+  "homepage": "https://github.com/stevenvachon/handlebars-react",
+  "author": {
+    "name": "Steven Vachon",
+    "email": "contact@svachon.com",
+    "url": "http://www.svachon.com/"
+  },
+  "main": "lib",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/stevenvachon/handlebars-react.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stevenvachon/handlebars-react/issues"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://opensource.org/licenses/mit-license.php"
+    }
+  ],
+  "dependencies": {
+    "handlebars-html-parser": "git://github.com/stevenvachon/handlebars-html-parser.git"
+  },
+  "devDependencies": {
+    "chai": "^1.10.0",
+    "mocha": "^2.0.1"
+  },
+  "engines": {
+    "node": ">= 0.10"
+  },
+  "scripts": {
+    "test": "node test/test.js",
+    "test2": "mocha test/ --reporter spec --check-leaks --bail --no-exit"
+  },
+  "files": [
+    "lib"
+  ],
+  "keywords": [
+    "handlebars",
+    "mustache",
+    "react",
+    "template",
+    "view"
+  ]
+}
