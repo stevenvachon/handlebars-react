@@ -1,4 +1,4 @@
-# handlebars-react
+# handlebars-react [![NPM Version][npm-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency Status][david-image]][david-url]
 > Compile Handlebars templates to [React](https://facebook.github.io/react/).
 
 Compile this:
@@ -27,11 +27,19 @@ React.DOM.div(null,
 ## Usage
 ### Server/Browserify
 ```js
-var handlebarsReact = require("handlebars-react");
-var result = new handlebarsReact(options).compile("<h1>{{title}}</h1>");
+var HandlebarsReact = require("handlebars-react");
+var result = new HandlebarsReact(options).compile("<h1>{{title}}</h1>");
 ```
 ### AMD/etc
-Accessible via `define()` or `windows.handlebarsReact`.
+Accessible via `define()` or `window.HandlebarsReact`.
 
 ## Options
 See [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
+
+
+[npm-image]: https://img.shields.io/npm/v/handlebars-react.svg
+[npm-url]: https://npmjs.org/package/handlebars-react
+[travis-image]: https://img.shields.io/travis/stevenvachon/handlebars-react.svg
+[travis-url]: https://travis-ci.org/stevenvachon/handlebars-react
+[david-image]: https://img.shields.io/david/stevenvachon/handlebars-react.svg
+[david-url]: https://david-dm.org/stevenvachon/handlebars-react
