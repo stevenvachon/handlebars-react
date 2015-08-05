@@ -47,13 +47,14 @@ function compiler(options)
 
 compiler.prototype.compile = function(str)
 {
-	var elementStack = [];
+	var attrCount,childrenCount/*,state*/;
+	//var elementStack = [];
+	var nodeStack = this.parser.parse(str);
 	var result = '';
 	
-	var temp = this.parser.parse(str);
-	//console.log(temp);
+	console.log(nodeStack);
 	
-	temp.forEach( function(node)
+	nodeStack.forEach( function(node, nodeIndex)
 	{
 		switch (node.type)
 		{
@@ -91,6 +92,12 @@ compiler.prototype.compile = function(str)
 			}
 			case parser.type.HTML_ATTR_START:
 			{
+				result += ',';
+				if (attrCount++ === 0)
+				{
+					//state = "attrs";
+					result += '{';
+				}
 				break;
 			}
 			
@@ -111,6 +118,7 @@ compiler.prototype.compile = function(str)
 			}
 			case parser.type.HTML_ATTR_VALUE_START:
 			{
+				result += ':';
 				break;
 			}
 			
@@ -127,16 +135,22 @@ compiler.prototype.compile = function(str)
 			
 			case parser.type.HTML_TAG_END:
 			{
-				//if (node.closing === true)
-				//{
+				result += closeAttrs(nodeStack, nodeIndex);
+				if (isClosingTag(nodeStack,nodeIndex,-4) === true)
+				{
 					result += ')';
-				//}
+				}
 				break;
 			}
 			case parser.type.HTML_TAG_START:
 			{
-				result += prefix(elementStack);
-				result += 'React.createElement(';
+				if (node.closing !== true)
+				{
+					attrCount = 0;
+					childrenCount = 0;
+					result += prefix(nodeStack, nodeIndex);
+					result += 'React.createElement(';
+				}
 				break;
 			}
 			
@@ -153,8 +167,11 @@ compiler.prototype.compile = function(str)
 			
 			case parser.type.TEXT:
 			{
-				result += prefix(elementStack);
-				result += '"'+ node.value +'"';
+				if (isClosingTag(nodeStack,nodeIndex,-2) !== true)
+				{
+					result += prefix(nodeStack, nodeIndex);
+					result += '"'+ node.value +'"';
+				}
 				break;
 			}
 			
@@ -164,11 +181,6 @@ compiler.prototype.compile = function(str)
 				// oops?
 			}
 		}
-		
-		//if (node.type!==parser.type.HTML_TAG
-		//{
-			elementStack.push(node.type);
-		//}
 	});
 	
 	return result;
@@ -176,12 +188,48 @@ compiler.prototype.compile = function(str)
 
 
 
-function lastNode(elementStack)
+function closeAttrs(nodeStack, nodeIndex)
 {
-	if (elementStack.length > 0)
+	var prevNode = previousNode(nodeStack, nodeIndex);
+	
+	if (prevNode !== undefined)
 	{
-		return elementStack[ elementStack.length-1 ];
+		if (prevNode.type === parser.type.HTML_ATTR_END)
+		{
+			return '}';
+		}
 	}
+	
+	return '';
+}
+
+
+
+function isClosingTag(nodeStack, nodeIndex, numPrev)
+{
+	var twoNodesBack = previousNode(nodeStack, nodeIndex, numPrev);
+	
+	if (twoNodesBack !== undefined)
+	{
+		if (twoNodesBack.type===parser.type.HTML_TAG_START && twoNodesBack.closing===true)
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+
+
+function previousNode(nodeStack, nodeIndex, numPrev)
+{
+	//if (nodeIndex >= 0)
+	//{
+		if (numPrev == null) numPrev = -1;
+		
+		return nodeStack[ nodeIndex + numPrev ];
+	//}
 }
 
 
@@ -189,15 +237,15 @@ function lastNode(elementStack)
 /*
 	Possibly add a prefixed "," or "+".
 */
-function prefix(elementStack)
+function prefix(nodeStack, nodeIndex)
 {
-	var prevNode = lastNode(elementStack);
+	var prevNode = previousNode(nodeStack, nodeIndex);
 	
 	//console.log(prevNode)
 	
 	if (prevNode !== undefined)
 	{
-		if (prevNode===parser.type.HTML_TAG_END || prevNode===parser.type.TEXT)
+		if (prevNode.type===parser.type.HTML_TAG_END || prevNode.type===parser.type.TEXT)
 		{
 			return ',';
 		}

@@ -7,7 +7,7 @@ var expect = require("chai").expect;
 
 it("should work", function(done)
 {
-	var result = new compiler().compile("<tag/>text<tag/>");
+	var result = new compiler().compile('<tag attr="value">text</tag>');
 	
 	console.log(result);
 	
@@ -20,7 +20,7 @@ it("should work", function(done)
 
 it.skip("should work", function(done)
 {
-	var result = new compiler().compile("<tag><tag/>text<tag/></tag>");
+	var result = new compiler().compile('<tag><tag/>text<tag/></tag>');
 	
 	console.log(result);
 	
