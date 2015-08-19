@@ -1,5 +1,17 @@
 "use strict";
+var objectAssign = require("object-assign");
 var parser = require("handlebars-html-parser");
+var React = require("react");
+var uglify = require("uglify-js");
+
+var defaultOptions = 
+{
+	beautify: true,
+	prefix: "",
+	suffix: ""
+};
+
+var createElementFunction = 'React.createElement(';
 
 
 
@@ -40,7 +52,9 @@ var parser = require("handlebars-html-parser");
 
 function compiler(options)
 {
-	this.parser = new parser(options);
+	this.options = objectAssign({}, defaultOptions, options);
+	
+	this.parser = new parser(this.options);
 }
 
 
@@ -50,7 +64,7 @@ compiler.prototype.compile = function(str)
 	var attrCount,childrenCount/*,state*/;
 	//var elementStack = [];
 	var nodeStack = this.parser.parse(str);
-	var result = '';
+	var result = [];
 	
 	console.log(nodeStack);
 	
@@ -92,12 +106,14 @@ compiler.prototype.compile = function(str)
 			}
 			case parser.type.HTML_ATTR_START:
 			{
-				result += ',';
+				append(',', result);
+				
 				if (attrCount++ === 0)
 				{
 					//state = "attrs";
-					result += '{';
+					append('{', result);
 				}
+				
 				break;
 			}
 			
@@ -118,7 +134,7 @@ compiler.prototype.compile = function(str)
 			}
 			case parser.type.HTML_ATTR_VALUE_START:
 			{
-				result += ':';
+				append(':', result);
 				break;
 			}
 			
@@ -135,11 +151,13 @@ compiler.prototype.compile = function(str)
 			
 			case parser.type.HTML_TAG_END:
 			{
-				result += closeAttrs(nodeStack, nodeIndex);
-				if (isClosingTag(nodeStack,nodeIndex,-4) === true)
+				append( closeAttrs(nodeStack, nodeIndex), result );
+				
+				if (isClosingTag(nodeStack, nodeIndex, -4) === true)
 				{
-					result += ')';
+					append(')', result);
 				}
+				
 				break;
 			}
 			case parser.type.HTML_TAG_START:
@@ -148,9 +166,10 @@ compiler.prototype.compile = function(str)
 				{
 					attrCount = 0;
 					childrenCount = 0;
-					result += prefix(nodeStack, nodeIndex);
-					result += 'React.createElement(';
+					append( prefix(nodeStack, nodeIndex), result );
+					append( createElementFunction, result );
 				}
+				
 				break;
 			}
 			
@@ -167,11 +186,15 @@ compiler.prototype.compile = function(str)
 			
 			case parser.type.TEXT:
 			{
-				if (isClosingTag(nodeStack,nodeIndex,-2) !== true)
+				if (isClosingTag(nodeStack, nodeIndex, -2) !== true)
 				{
-					result += prefix(nodeStack, nodeIndex);
-					result += '"'+ node.value +'"';
+					//if (changeTagFunction(nodeStack, nodeIndex, node.value, result) === false)
+					//{
+						append( prefix(nodeStack, nodeIndex), result );
+						append( '"'+ node.value +'"', result );
+					//}
 				}
+				
 				break;
 			}
 			
@@ -183,8 +206,46 @@ compiler.prototype.compile = function(str)
 		}
 	});
 	
-	return result;
+	return finalize(result, this.options);
 };
+
+
+
+function append(string, resultArray)
+{
+	if (string != null && string !== "")
+	{
+		resultArray.push(string);
+	}
+}
+
+
+
+function changeTagFunction(nodeStack, nodeIndex, tagName, resultArray)
+{
+	var lastResultIndex;
+	
+	// If we're defining a tag name
+	if (previousNode(nodeStack,nodeIndex).type === parser.type.HTML_TAG_NAME_START)
+	{
+		lastResultIndex = resultArray.length-1;
+		
+		// If last result index is `React.createElement`
+		if (resultArray[lastResultIndex] === createElementFunction)
+		{
+			tagName = tagName.toLowerCase();
+			
+			// If tag name has a `React.DOM` function
+			if (typeof React.DOM[tagName] === "function")
+			{
+				resultArray[lastResultIndex] = 'React.DOM.' + tagName + '(';
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
 
 
 
@@ -201,6 +262,36 @@ function closeAttrs(nodeStack, nodeIndex)
 	}
 	
 	return '';
+}
+
+
+
+function finalize(resultArray, options)
+{
+	var js = options.prefix + resultArray.join("") + options.suffix;
+	
+	// Check that the compiled JavaScript code is valid
+	try
+	{
+		Function("", js);
+	}
+	catch (error)
+	{
+		console.log(js);
+		throw error;
+	}
+	
+	if (options.beautify === true)
+	{
+		js = uglify.parse(js).print_to_string(
+		{
+			beautify: true,
+			comments: true,
+			indent_level: 2
+		});
+	}
+	
+	return js;
 }
 
 
