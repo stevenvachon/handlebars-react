@@ -55,8 +55,8 @@ function compiler(options)
 
 compiler.prototype.compile = function(str)
 {
-	var attrCount = 0;  // for current tag
-	var childCounts = [0];  // indexed by parent tag depth -- first index is a "document" node (root node container)
+	var attrCounts  = [0];  // indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
+	var childCounts = [0];  // indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
 	var isAttribute      = false;  // <tag …
 	var isAttributeName  = false;  // <tag attr
 	var isAttributeValue = false;  // <tag attr="value"
@@ -68,8 +68,6 @@ compiler.prototype.compile = function(str)
 	var nodeStack = this.parser.parse(str);
 	var result = [];
 	var thisObj = this;
-	
-	console.log(nodeStack);
 	
 	nodeStack.forEach( function(node, nodeIndex)
 	{
@@ -112,7 +110,9 @@ compiler.prototype.compile = function(str)
 			{
 				isAttribute = true;
 				
-				if (attrCount++ === 0)
+				incrementSiblingCount(attrCounts);
+				
+				if (count(attrCounts) <= 1)
 				{
 					if (isDomMethod === false)
 					{
@@ -179,14 +179,15 @@ compiler.prototype.compile = function(str)
 			{
 				if (isClosingTag === true)
 				{
-					if (attrCount>0 && childCount(childCounts)<=0)
+					if (count(attrCounts)>0 && count(childCounts)<=0)
 					{
 						append('}', result);
 					}
 					
 					append(')', result);
 					
-					stopChildCount(childCounts);
+					stopCount(attrCounts);
+					stopCount(childCounts);
 				}
 				
 				isClosingTag = false;
@@ -202,14 +203,11 @@ compiler.prototype.compile = function(str)
 				
 				if (isClosingTag === false)
 				{
-					attrCount = 0;
-					incrementSiblingCount(childCounts);
-					startChildCount(childCounts);
+					beforeChild(attrCounts, childCounts, isDomMethod, result);
 					
-					if (siblingCount(childCounts) > 0)
-					{
-						append(',', result);
-					}
+					startCount(attrCounts);
+					incrementSiblingCount(childCounts);
+					startCount(childCounts);
 					
 					append('React.createElement(', result);
 				}
@@ -278,36 +276,10 @@ compiler.prototype.compile = function(str)
 					// Support for non-html documents
 					//if (siblingCount(childCounts) > 0)
 					//{
-						if (attrCount <= 0)
-						{
-							if (isDomMethod === false)
-							{
-								// React.createElement("tag",
-								append(',', result);
-							}
-							
-							// React.createElement("tag", null,
-							// React.DOM.tag(null,
-							append('null', result);
-							append(',', result);
-						}
-						else
-						{
-							// React.createElement("tag", {"attr":"value"},
-							// React.DOM.tag({"attr":"value"},
-							append('}', result);
-							append(',', result);
-						}
+						beforeChild(attrCounts, childCounts, isDomMethod, result);
 					//}
 					
 					incrementSiblingCount(childCounts);
-					
-					if (siblingCount(childCounts) > 0)
-					{
-						// React.createElement("tag", {"attr":"value"}, sibling,
-						// React.DOM.tag({"attr":"value"}, sibling,
-						append(',', result);
-					}
 					
 					//if (typeof node.value==="string" || node.value instanceof String===true)
 					//{
@@ -331,7 +303,21 @@ compiler.prototype.compile = function(str)
 		}
 	});
 	
-	return finalize(result, this.options);
+	// If more than one top-level node
+	if (childCounts[0] > 1)
+	{
+		// Contain comma-separated list in an Array
+		result.unshift('[');
+		result.push(']');
+	}
+	
+	result = finalize(result, this.options);
+	
+	console.log(nodeStack);
+	console.log(str);
+	console.log(result);
+	
+	return result;
 };
 
 
@@ -350,9 +336,49 @@ function append(string, resultArray)
 
 
 
-function childCount(stack)
+function beforeChild(attrCounts, childCounts, isDomMethod, resultArray)
 {
-	return stack[stack.length - 1];
+	// If not top-level node
+	if (childCounts.length > 1)
+	{
+		if (count(attrCounts) <= 0)
+		{
+			if (count(childCounts) <= 0)
+			{
+				if (isDomMethod === false)
+				{
+					// React.createElement("tag",
+					append(',', resultArray);
+				}
+				
+				// React.createElement("tag", null,
+				// React.DOM.tag(null,
+				append('null', resultArray);
+				append(',', resultArray);
+			}
+			else
+			{
+				// React.createElement("tag", {"attr":"value"}, sibling,
+				// React.DOM.tag({"attr":"value"}, sibling,
+				append(',', resultArray);
+			}
+		}
+		else
+		{
+			// React.createElement("tag", {"attr":"value"},
+			// React.DOM.tag({"attr":"value"},
+			append('}', resultArray);
+			append(',', resultArray);
+		}
+	}
+	// If top-level node with siblings
+	else if (count(childCounts) > 0)
+	{
+		// React.createElement(…),
+		// React.DOM.tag(…),
+		// "text",
+		append(',', resultArray);
+	}
 }
 
 
@@ -380,6 +406,13 @@ function convertAttributeName(attrName)
 	}
 	
 	return attrName;
+}
+
+
+
+function count(stack)
+{
+	return stack[stack.length - 1];
 }
 
 
@@ -426,11 +459,12 @@ function siblingCount(stack)
 {
 	var count;
 	
+	// If not "document" node
 	if (stack.length > 1)
 	{
 		count = stack[stack.length - 2];
 	}
-	// Support for multiple root nodes
+	// Support for multiple top-level nodes
 	else
 	{
 		count = stack[stack.length - 1];
@@ -448,14 +482,14 @@ function siblingCount(stack)
 
 
 
-function startChildCount(stack)
+function startCount(stack)
 {
 	stack.push(0);
 }
 
 
 
-function stopChildCount(stack)
+function stopCount(stack)
 {
 	stack.pop();
 }
