@@ -8,20 +8,14 @@ var defaultOptions =
 {
 	beautify: true,
 	prefix: "",
-	suffix: ""
+	suffix: "",
+	useDomMethods: true
 };
-
-var createElementFunction = 'React.createElement(';
 
 
 
 /*var NodeType = 
 {
-	ATTR_NAME: "attrName",
-	ATTR_VALUE: "attrValue",
-	
-	TAG_NAME: "tagName"
-	
 	HBS_EXPRESSION: "hbsExpression",
 	
 	HBS_EXPRESSION_END:        "hbsExpressionEnd",
@@ -61,10 +55,19 @@ function compiler(options)
 
 compiler.prototype.compile = function(str)
 {
-	var attrCount,childrenCount/*,state*/;
-	//var elementStack = [];
+	var attrCount = 0;  // for current tag
+	var childCounts = [0];  // indexed by parent tag depth -- first index is a "document" node (root node container)
+	var isAttribute      = false;  // <tag …
+	var isAttributeName  = false;  // <tag attr
+	var isAttributeValue = false;  // <tag attr="value"
+	var isClosingTag     = false;  // </…
+	var isComment        = false;  // <!--…
+	var isDomMethod      = false;  // React.DOM… or React.createElement
+	var isTag            = false;  // <…
+	var isTagName        = false;  // <tag
 	var nodeStack = this.parser.parse(str);
 	var result = [];
+	var thisObj = this;
 	
 	console.log(nodeStack);
 	
@@ -102,16 +105,30 @@ compiler.prototype.compile = function(str)
 			
 			case parser.type.HTML_ATTR_END:
 			{
+				isAttribute = false;
 				break;
 			}
 			case parser.type.HTML_ATTR_START:
 			{
-				append(',', result);
+				isAttribute = true;
 				
 				if (attrCount++ === 0)
 				{
-					//state = "attrs";
+					if (isDomMethod === false)
+					{
+						// React.createElement("tag",
+						append(',', result);
+					}
+					
+					// React.createElement("tag", {
+					// React.DOM.tag({
 					append('{', result);
+				}
+				else
+				{
+					// React.createElement("tag", {attr:"value",
+					// React.DOM.tag({attr:value,
+					append(',', result);
 				}
 				
 				break;
@@ -120,54 +137,81 @@ compiler.prototype.compile = function(str)
 			
 			case parser.type.HTML_ATTR_NAME_END:
 			{
+				isAttributeName = false;
 				break;
 			}
 			case parser.type.HTML_ATTR_NAME_START:
 			{
+				isAttributeName = true;
 				break;
 			}
 			
 			
 			case parser.type.HTML_ATTR_VALUE_END:
 			{
+				isAttributeValue = false;
 				break;
 			}
 			case parser.type.HTML_ATTR_VALUE_START:
 			{
+				isAttributeValue = true;
+				
 				append(':', result);
+				
 				break;
 			}
 			
 			
 			case parser.type.HTML_COMMENT_END:
 			{
+				isComment = false;
 				break;
 			}
 			case parser.type.HTML_COMMENT_START:
 			{
+				isComment = true;
 				break;
 			}
 			
 			
+			// …>
 			case parser.type.HTML_TAG_END:
 			{
-				append( closeAttrs(nodeStack, nodeIndex), result );
-				
-				if (isClosingTag(nodeStack, nodeIndex, -4) === true)
+				if (isClosingTag === true)
 				{
+					if (attrCount>0 && childCount(childCounts)<=0)
+					{
+						append('}', result);
+					}
+					
 					append(')', result);
+					
+					stopChildCount(childCounts);
 				}
+				
+				isClosingTag = false;
+				isTag = false;
 				
 				break;
 			}
+			// <…
 			case parser.type.HTML_TAG_START:
 			{
-				if (node.closing !== true)
+				isClosingTag = (node.closing === true);
+				isTag = true;
+				
+				if (isClosingTag === false)
 				{
 					attrCount = 0;
-					childrenCount = 0;
-					append( prefix(nodeStack, nodeIndex), result );
-					append( createElementFunction, result );
+					incrementSiblingCount(childCounts);
+					startChildCount(childCounts);
+					
+					if (siblingCount(childCounts) > 0)
+					{
+						append(',', result);
+					}
+					
+					append('React.createElement(', result);
 				}
 				
 				break;
@@ -176,22 +220,103 @@ compiler.prototype.compile = function(str)
 			
 			case parser.type.HTML_TAG_NAME_END:
 			{
+				isTagName = false;
 				break;
 			}
 			case parser.type.HTML_TAG_NAME_START:
 			{
+				isTagName = true;
 				break;
 			}
 			
 			
 			case parser.type.TEXT:
 			{
-				if (isClosingTag(nodeStack, nodeIndex, -2) !== true)
+				if (isTag === true)
 				{
-					//if (changeTagFunction(nodeStack, nodeIndex, node.value, result) === false)
+					if (isTagName === true)
+					{
+						if (isClosingTag === false)
+						{
+							if (thisObj.options.useDomMethods === true)
+							{
+								// If tag name has a `React.DOM` function
+								if (typeof React.DOM[node.value.toLowerCase()] === "function")
+								{
+									isDomMethod = true;
+									
+									// Change last/previous result index
+									result[result.length-1] = 'React.DOM.' + node.value.toLowerCase() + '(';
+									
+									break;
+								}
+							}
+							
+							// React.createElement("tag"
+							append('"'+ node.value.toLowerCase() +'"', result);
+						}
+						// Else: closing tag name not appended
+					}
+					else if (isAttribute === true)
+					{
+						if (isAttributeName === true)
+						{
+							// React.createElement("tag", {"attr"
+							// React.DOM.tag({"attr"
+							append('"'+ convertAttributeName(node.value.toLowerCase()) +'"', result);
+						}
+						else if (isAttributeValue === true)
+						{
+							// React.createElement("tag", {"attr":"value"
+							// React.DOM.tag({"attr":"value"
+							append('"'+ node.value +'"', result);
+						}
+					}
+				}
+				else
+				{
+					// Support for non-html documents
+					//if (siblingCount(childCounts) > 0)
 					//{
-						append( prefix(nodeStack, nodeIndex), result );
-						append( '"'+ node.value +'"', result );
+						if (attrCount <= 0)
+						{
+							if (isDomMethod === false)
+							{
+								// React.createElement("tag",
+								append(',', result);
+							}
+							
+							// React.createElement("tag", null,
+							// React.DOM.tag(null,
+							append('null', result);
+							append(',', result);
+						}
+						else
+						{
+							// React.createElement("tag", {"attr":"value"},
+							// React.DOM.tag({"attr":"value"},
+							append('}', result);
+							append(',', result);
+						}
+					//}
+					
+					incrementSiblingCount(childCounts);
+					
+					if (siblingCount(childCounts) > 0)
+					{
+						// React.createElement("tag", {"attr":"value"}, sibling,
+						// React.DOM.tag({"attr":"value"}, sibling,
+						append(',', result);
+					}
+					
+					//if (typeof node.value==="string" || node.value instanceof String===true)
+					//{
+						append('"'+ node.value +'"', result);
+					//}
+					//else
+					//{
+						// Support for null, undefined, numbers
+					//	append(node.value, result);
 					//}
 				}
 				
@@ -211,6 +336,10 @@ compiler.prototype.compile = function(str)
 
 
 
+//::: PRIVATE FUNCTIONS
+
+
+
 function append(string, resultArray)
 {
 	if (string != null && string !== "")
@@ -221,47 +350,36 @@ function append(string, resultArray)
 
 
 
-function changeTagFunction(nodeStack, nodeIndex, tagName, resultArray)
+function childCount(stack)
 {
-	var lastResultIndex;
-	
-	// If we're defining a tag name
-	if (previousNode(nodeStack,nodeIndex).type === parser.type.HTML_TAG_NAME_START)
-	{
-		lastResultIndex = resultArray.length-1;
-		
-		// If last result index is `React.createElement`
-		if (resultArray[lastResultIndex] === createElementFunction)
-		{
-			tagName = tagName.toLowerCase();
-			
-			// If tag name has a `React.DOM` function
-			if (typeof React.DOM[tagName] === "function")
-			{
-				resultArray[lastResultIndex] = 'React.DOM.' + tagName + '(';
-				return true;
-			}
-		}
-	}
-	
-	return false;
+	return stack[stack.length - 1];
 }
 
 
 
-function closeAttrs(nodeStack, nodeIndex)
+function convertAttributeName(attrName)
 {
-	var prevNode = previousNode(nodeStack, nodeIndex);
-	
-	if (prevNode !== undefined)
+	// TODO :: is this necessary?
+	// TODO :: find a lib for this as there're more?
+	switch (attrName)
 	{
-		if (prevNode.type === parser.type.HTML_ATTR_END)
+		case "class":
 		{
-			return '}';
+			attrName = "className";
+			break;
+		}
+		case "for":
+		{
+			attrName = "htmlFor";
+			break;
+		}
+		default:
+		{
+			// TODO :: camel-case it?
 		}
 	}
 	
-	return '';
+	return attrName;
 }
 
 
@@ -296,53 +414,50 @@ function finalize(resultArray, options)
 
 
 
-function isClosingTag(nodeStack, nodeIndex, numPrev)
+function incrementSiblingCount(stack)
 {
-	var twoNodesBack = previousNode(nodeStack, nodeIndex, numPrev);
-	
-	if (twoNodesBack !== undefined)
-	{
-		if (twoNodesBack.type===parser.type.HTML_TAG_START && twoNodesBack.closing===true)
-		{
-			return true;
-		}
-	}
-	
-	return false;
+	// Increase parent's children count
+	stack[stack.length - 1]++;
 }
 
 
 
-function previousNode(nodeStack, nodeIndex, numPrev)
+function siblingCount(stack)
 {
-	//if (nodeIndex >= 0)
-	//{
-		if (numPrev == null) numPrev = -1;
-		
-		return nodeStack[ nodeIndex + numPrev ];
-	//}
+	var count;
+	
+	if (stack.length > 1)
+	{
+		count = stack[stack.length - 2];
+	}
+	// Support for multiple root nodes
+	else
+	{
+		count = stack[stack.length - 1];
+	}
+	
+	// Siblings cannot include self
+	count--;
+	
+	// No negative siblings
+	// TODO :: is this necessary?
+	count = Math.max(0, count);
+	
+	return count;
 }
 
 
 
-/*
-	Possibly add a prefixed "," or "+".
-*/
-function prefix(nodeStack, nodeIndex)
+function startChildCount(stack)
 {
-	var prevNode = previousNode(nodeStack, nodeIndex);
-	
-	//console.log(prevNode)
-	
-	if (prevNode !== undefined)
-	{
-		if (prevNode.type===parser.type.HTML_TAG_END || prevNode.type===parser.type.TEXT)
-		{
-			return ',';
-		}
-	}
-	
-	return '';
+	stack.push(0);
+}
+
+
+
+function stopChildCount(stack)
+{
+	stack.pop();
 }
 
 

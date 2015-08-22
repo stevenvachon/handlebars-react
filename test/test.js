@@ -7,6 +7,10 @@ var options = { beautify:false };
 
 
 
+// https://facebook.github.io/react/jsx-compiler.html
+
+
+
 describe("Basic HTML", function()
 {
 	it("should support a tag", function(done)
@@ -44,10 +48,10 @@ describe("Basic HTML", function()
 	
 	
 	
-	it("should support a tag that has nested tags", function(done)
+	it.skip("should support a tag that has nested tags", function(done)
 	{
 		var result = new compiler(options).compile('<tag><tag/>text<tag/></tag>');
-		var expectedResult = 'React.createElement("tag",React.createElement("tag"),"text",React.createElement("tag"))';
+		var expectedResult = 'React.createElement("tag",null,React.createElement("tag"),"text",React.createElement("tag"))';
 		
 		expect(result).to.equal(expectedResult);
 		done();
@@ -58,7 +62,7 @@ describe("Basic HTML", function()
 	it.skip("should support a tag with a convenience function that has nested tags", function(done)
 	{
 		var result = new compiler(options).compile('<div><tag/>text<tag/></div>');
-		var expectedResult = 'React.DOM.div(React.createElement("tag"),"text",React.createElement("tag"))';
+		var expectedResult = 'React.DOM.div(null,React.createElement("tag"),"text",React.createElement("tag"))';
 		
 		expect(result).to.equal(expectedResult);
 		done();

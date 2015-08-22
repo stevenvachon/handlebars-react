@@ -1,7 +1,7 @@
 {
   "name": "handlebars-react",
   "description": "Compile Handlebars templates to React.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "MIT",
   "homepage": "https://github.com/stevenvachon/handlebars-react",
   "author": {
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "handlebars-html-parser": "git://github.com/stevenvachon/handlebars-html-parser.git",
-    "object-assign": "^3.0.0",
+    "object-assign": "^4.0.1",
     "react": "^0.13.3",
     "uglify-js": "^2.4.24"
   },
