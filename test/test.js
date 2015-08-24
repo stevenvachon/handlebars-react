@@ -26,7 +26,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support attributes", function(done)
+		it("should support an attribute", function(done)
 		{
 			var result = new compiler(options).compile('<tag attr="value"></tag>');
 			var expectedResult = 'React.createElement("tag",{"attr":"value"})';
@@ -37,12 +37,23 @@ describe("Basic HTML", function()
 		
 		
 		
+		it("should support attributes", function(done)
+		{
+			var result = new compiler(options).compile('<tag attr1="value1" attr-2="value2"></tag>');
+			var expectedResult = 'React.createElement("tag",{"attr1":"value1","attr-2":"value2"})';
+			
+			expect(result).to.equal(expectedResult);
+			done();
+		});
+		
+		
+		
 		it("should support attributes and text content", function(done)
 		{
-			var result = new compiler(options).compile('<tag attr="value">text</tag>');
-			var expectedResult = 'React.createElement("tag",{"attr":"value"},"text")';
+			var result = new compiler(options).compile('<tag attr1="value1" attr-2="value2">text</tag>');
+			var expectedResult = 'React.createElement("tag",{"attr1":"value1","attr-2":"value2"},"text")';
 			
-			//console.log( require("uglify-js").minify(result,{fromString:true}) );
+			//console.log( require("uglify-js").minify(result,{fromString:true}).code );
 			
 			expect(result).to.equal(expectedResult);
 			done();
@@ -111,8 +122,49 @@ describe("Basic HTML", function()
 		
 		it("should support attributes and text content", function(done)
 		{
-			var result = new compiler(options).compile('<tag attr="value">text</tag><tag attr="value">text</tag>');
-			var expectedResult = '[React.createElement("tag",{"attr":"value"},"text"),React.createElement("tag",{"attr":"value"},"text")]';
+			var result = new compiler(options).compile('<tag attr="value">text</tag> <tag attr1="value1" attr-2="value2">text</tag>');
+			var expectedResult = '[React.createElement("tag",{"attr":"value"},"text")," ",React.createElement("tag",{"attr1":"value1","attr-2":"value2"},"text")]';
+			
+			expect(result).to.equal(expectedResult);
+			done();
+		});
+		
+		
+		
+		it("should support nested tags", function(done)
+		{
+			var result = new compiler(options).compile('<tag><tag/>text<tag/></tag> <tag>text<tag/>text</tag>');
+			var expectedResult = '[React.createElement("tag",null,React.createElement("tag"),"text",React.createElement("tag"))," ",React.createElement("tag",null,"text",React.createElement("tag"),"text")]';
+			
+			expect(result).to.equal(expectedResult);
+			done();
+		});
+		
+		
+		
+		it("should support nested tags and a convenience function", function(done)
+		{
+			var result = new compiler(options).compile('<div><tag/>text<tag/></div> <div>text<tag/>text</div>');
+			var expectedResult = '[React.DOM.div(null,React.createElement("tag"),"text",React.createElement("tag"))," ",React.DOM.div(null,"text",React.createElement("tag"),"text")]';
+			
+			expect(result).to.equal(expectedResult);
+			done();
+		});
+	});
+	
+	
+	
+	describe("options", function()
+	{
+		it("beautify = true", function(done)
+		{
+			var result = new compiler({beautify:true}).compile('<tag attr1="value1" attr-2="value2">text</tag>');
+			
+			var expectedResult = '';
+			expectedResult += 'React.createElement("tag", {\n';
+			expectedResult += '  attr1: "value1",\n';
+			expectedResult += '  "attr-2": "value2"\n';
+			expectedResult += '}, "text");';
 			
 			expect(result).to.equal(expectedResult);
 			done();

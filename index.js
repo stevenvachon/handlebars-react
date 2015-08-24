@@ -1,12 +1,13 @@
 "use strict";
+var HandlebarsHtmlParser = require("handlebars-html-parser");
 var objectAssign = require("object-assign");
-var parser = require("handlebars-html-parser");
 var React = require("react");
 var uglify = require("uglify-js");
 
 var defaultOptions = 
 {
 	beautify: true,
+	collapseWhitespace: true,
 	prefix: "",
 	suffix: "",
 	useDomMethods: true
@@ -48,7 +49,10 @@ function compiler(options)
 {
 	this.options = objectAssign({}, defaultOptions, options);
 	
-	this.parser = new parser(this.options);
+	this.parser = new HandlebarsHtmlParser(
+	{
+		collapseWhitespace: this.options.collapseWhitespace
+	});
 }
 
 
@@ -73,40 +77,40 @@ compiler.prototype.compile = function(str)
 	{
 		switch (node.type)
 		{
-			case parser.type.HBS_EXPRESSION_END:
+			case HandlebarsHtmlParser.type.HBS_EXPRESSION_END:
 			{
 				break;
 			}
-			case parser.type.HBS_EXPRESSION_START:
-			{
-				break;
-			}
-			
-			
-			case parser.type.HBS_EXPRESSION_HASH_PARAM:
+			case HandlebarsHtmlParser.type.HBS_EXPRESSION_START:
 			{
 				break;
 			}
 			
 			
-			case parser.type.HBS_EXPRESSION_PARAM:
+			case HandlebarsHtmlParser.type.HBS_EXPRESSION_HASH_PARAM:
 			{
 				break;
 			}
 			
 			
-			case parser.type.HBS_EXPRESSION_PATH:
+			case HandlebarsHtmlParser.type.HBS_EXPRESSION_PARAM:
 			{
 				break;
 			}
 			
 			
-			case parser.type.HTML_ATTR_END:
+			case HandlebarsHtmlParser.type.HBS_EXPRESSION_PATH:
+			{
+				break;
+			}
+			
+			
+			case HandlebarsHtmlParser.type.HTML_ATTR_END:
 			{
 				isAttribute = false;
 				break;
 			}
-			case parser.type.HTML_ATTR_START:
+			case HandlebarsHtmlParser.type.HTML_ATTR_START:
 			{
 				isAttribute = true;
 				
@@ -135,24 +139,24 @@ compiler.prototype.compile = function(str)
 			}
 			
 			
-			case parser.type.HTML_ATTR_NAME_END:
+			case HandlebarsHtmlParser.type.HTML_ATTR_NAME_END:
 			{
 				isAttributeName = false;
 				break;
 			}
-			case parser.type.HTML_ATTR_NAME_START:
+			case HandlebarsHtmlParser.type.HTML_ATTR_NAME_START:
 			{
 				isAttributeName = true;
 				break;
 			}
 			
 			
-			case parser.type.HTML_ATTR_VALUE_END:
+			case HandlebarsHtmlParser.type.HTML_ATTR_VALUE_END:
 			{
 				isAttributeValue = false;
 				break;
 			}
-			case parser.type.HTML_ATTR_VALUE_START:
+			case HandlebarsHtmlParser.type.HTML_ATTR_VALUE_START:
 			{
 				isAttributeValue = true;
 				
@@ -162,12 +166,12 @@ compiler.prototype.compile = function(str)
 			}
 			
 			
-			case parser.type.HTML_COMMENT_END:
+			case HandlebarsHtmlParser.type.HTML_COMMENT_END:
 			{
 				isComment = false;
 				break;
 			}
-			case parser.type.HTML_COMMENT_START:
+			case HandlebarsHtmlParser.type.HTML_COMMENT_START:
 			{
 				isComment = true;
 				break;
@@ -175,7 +179,7 @@ compiler.prototype.compile = function(str)
 			
 			
 			// …>
-			case parser.type.HTML_TAG_END:
+			case HandlebarsHtmlParser.type.HTML_TAG_END:
 			{
 				if (isClosingTag === true)
 				{
@@ -196,7 +200,7 @@ compiler.prototype.compile = function(str)
 				break;
 			}
 			// <…
-			case parser.type.HTML_TAG_START:
+			case HandlebarsHtmlParser.type.HTML_TAG_START:
 			{
 				isClosingTag = (node.closing === true);
 				isTag = true;
@@ -216,19 +220,19 @@ compiler.prototype.compile = function(str)
 			}
 			
 			
-			case parser.type.HTML_TAG_NAME_END:
+			case HandlebarsHtmlParser.type.HTML_TAG_NAME_END:
 			{
 				isTagName = false;
 				break;
 			}
-			case parser.type.HTML_TAG_NAME_START:
+			case HandlebarsHtmlParser.type.HTML_TAG_NAME_START:
 			{
 				isTagName = true;
 				break;
 			}
 			
 			
-			case parser.type.TEXT:
+			case HandlebarsHtmlParser.type.TEXT:
 			{
 				if (isTag === true)
 				{
@@ -313,9 +317,9 @@ compiler.prototype.compile = function(str)
 	
 	result = finalize(result, this.options);
 	
-	console.log(nodeStack);
-	console.log(str);
-	console.log(result);
+	//console.log(nodeStack);
+	//console.log(str);
+	//console.log(result);
 	
 	return result;
 };
