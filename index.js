@@ -1,4 +1,5 @@
 "use strict";
+//var cssobjectify = require("cssobjectify");
 var HandlebarsHtmlParser = require("handlebars-html-parser");
 var objectAssign = require("object-assign");
 var React = require("react");
@@ -8,6 +9,7 @@ var defaultOptions =
 {
 	beautify: true,
 	collapseWhitespace: true,
+	multipleTopLevelNodes: false,
 	prefix: "",
 	suffix: "",
 	useDomMethods: true
@@ -59,14 +61,18 @@ function compiler(options)
 
 compiler.prototype.compile = function(str)
 {
-	var attrCounts  = [0];  // indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
-	var childCounts = [0];  // indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
+	// Indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
+	var attrCounts    = [0];      // atributes per element in stack
+	var areDomMethods = [false];  // React.DOM… or React.createElement per element in stack
+	var childCounts   = [0];      // child count per element in stack
+	
 	var isAttribute      = false;  // <tag …
 	var isAttributeName  = false;  // <tag attr
 	var isAttributeValue = false;  // <tag attr="value"
 	var isClosingTag     = false;  // </…
 	var isComment        = false;  // <!--…
-	var isDomMethod      = false;  // React.DOM… or React.createElement
+	var isScriptTag      = false;  // <script
+	var isStyleAttribute = false;  // <tag style
 	var isTag            = false;  // <…
 	var isTagName        = false;  // <tag
 	var nodeStack = this.parser.parse(str);
@@ -118,7 +124,7 @@ compiler.prototype.compile = function(str)
 				
 				if (count(attrCounts) <= 1)
 				{
-					if (isDomMethod === false)
+					if (isDomMethod(areDomMethods, childCounts) === false)
 					{
 						// React.createElement("tag",
 						append(',', result);
@@ -190,6 +196,7 @@ compiler.prototype.compile = function(str)
 					
 					append(')', result);
 					
+					areDomMethods.pop();
 					stopCount(attrCounts);
 					stopCount(childCounts);
 				}
@@ -207,7 +214,9 @@ compiler.prototype.compile = function(str)
 				
 				if (isClosingTag === false)
 				{
-					beforeChild(attrCounts, childCounts, isDomMethod, result);
+					beforeChild(areDomMethods, attrCounts, childCounts, result);
+					
+					areDomMethods.push(false);
 					
 					startCount(attrCounts);
 					incrementSiblingCount(childCounts);
@@ -245,7 +254,8 @@ compiler.prototype.compile = function(str)
 								// If tag name has a `React.DOM` function
 								if (typeof React.DOM[node.value.toLowerCase()] === "function")
 								{
-									isDomMethod = true;
+									// TODO :: wrap this so it's nicer?
+									areDomMethods[areDomMethods.length-1] = true;
 									
 									// Change last/previous result index
 									result[result.length-1] = 'React.DOM.' + node.value.toLowerCase() + '(';
@@ -280,7 +290,7 @@ compiler.prototype.compile = function(str)
 					// Support for non-html documents
 					//if (siblingCount(childCounts) > 0)
 					//{
-						beforeChild(attrCounts, childCounts, isDomMethod, result);
+						beforeChild(areDomMethods, attrCounts, childCounts, result);
 					//}
 					
 					incrementSiblingCount(childCounts);
@@ -308,11 +318,18 @@ compiler.prototype.compile = function(str)
 	});
 	
 	// If more than one top-level node
-	if (childCounts[0] > 1)
+	if (count(childCounts) > 1)
 	{
-		// Contain comma-separated list in an Array
-		result.unshift('[');
-		result.push(']');
+		if (this.options.multipleTopLevelNodes === true)
+		{
+			// Contain comma-separated list in an Array
+			result.unshift('[');
+			result.push(']');
+		}
+		else
+		{
+			throw new Error(count(childCounts) + "top-level nodes detected. Only one is currently supported by React.");
+		}
 	}
 	
 	result = finalize(result, this.options);
@@ -340,7 +357,7 @@ function append(string, resultArray)
 
 
 
-function beforeChild(attrCounts, childCounts, isDomMethod, resultArray)
+function beforeChild(areDomMethods, attrCounts, childCounts, resultArray)
 {
 	// If not top-level node
 	if (childCounts.length > 1)
@@ -349,7 +366,7 @@ function beforeChild(attrCounts, childCounts, isDomMethod, resultArray)
 		{
 			if (count(childCounts) <= 0)
 			{
-				if (isDomMethod === false)
+				if (isDomMethod(areDomMethods, childCounts) === false)
 				{
 					// React.createElement("tag",
 					append(',', resultArray);
@@ -425,7 +442,7 @@ function finalize(resultArray, options)
 {
 	var js = options.prefix + resultArray.join("") + options.suffix;
 	
-	// Check that the compiled JavaScript code is valid
+	// Check that the compiled code is valid
 	try
 	{
 		Function("", js);
@@ -455,6 +472,32 @@ function incrementSiblingCount(stack)
 {
 	// Increase parent's children count
 	stack[stack.length - 1]++;
+}
+
+
+
+// TODO :: is same as count() -- find common names
+function isDomMethod(stack)
+{
+	return stack[stack.length - 1];
+}
+
+
+
+function parseScript(script)
+{
+	// Converts whitespace, unicode chars, etc
+	return JSON.stringify(script);
+}
+
+
+
+function parseInlineStyles(styles)
+{
+	// TODO :: this lib just loads files :/
+	styles = cssobjectify(styles);
+	
+	return JSON.stringify(styles);
 }
 
 

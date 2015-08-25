@@ -3,7 +3,7 @@ var compiler = require("../");
 
 var expect = require("chai").expect;
 
-var options = { beautify:false };
+var options = { beautify:false, multipleTopLevelNodes:true };
 
 
 
@@ -98,6 +98,17 @@ describe("Basic HTML", function()
 		{
 			var result = new compiler(options).compile('<div>text<tag/>text</div>');
 			var expectedResult = 'React.DOM.div(null,"text",React.createElement("tag"),"text")';
+			
+			expect(result).to.equal(expectedResult);
+			done();
+		});
+		
+		
+		
+		it("should support nested tags and a convenience function (#3)", function(done)
+		{
+			var result = new compiler(options).compile('<div><div>text</div><tag>text</tag></div>');
+			var expectedResult = 'React.DOM.div(null,React.DOM.div(null,"text"),React.createElement("tag",null,"text"))';
 			
 			expect(result).to.equal(expectedResult);
 			done();
