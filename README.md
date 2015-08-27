@@ -25,13 +25,20 @@ React.DOM.div(null,
 ```
 
 
+## Installation
+[Node.js](http://nodejs.org/) `>= 0.10` is required. ~~Type this at the command line:~~
+```shell
+npm install handlebars-react --save-dev
+```
+
+
 ## Usage
 ### Server/Browserify
 ```js
 var HandlebarsReact = require("handlebars-react");
 var result = new HandlebarsReact(options).compile("<h1>{{title}}</h1>");
 ```
-### AMD/etc
+### UMD/AMD/etc
 Accessible via `define()` or `window.HandlebarsReact`.
 
 
@@ -42,7 +49,7 @@ Type: `Boolean`
 Default value: `true`  
 When `true`, output will be formatted for increased legibility.
 
-### options.collapseWhitespace
+### options.normalizeWhitespace
 Type: `Boolean`  
 Default value: `true`  
 When `true`, standard whitespace will be replaced with a single space. For more info, see [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
@@ -54,12 +61,13 @@ When `true`, available `React.DOM` convenience functions will be used instead of
 
 
 ## Roadmap Features
+* support `<script type="text/x-handlebars-template">`, etc
 * add `convertHbsComments` option for converting Handlebars comments to HTML comments
 * add `ignoreHtmlComments` option when React supports such ([react#2810](https://github.com/facebook/react/issues/2810))
 
 
 ## Changelog
-* 0.0.1–0.0.8 pre-releases
+* 0.0.1–0.0.9 pre-releases
 
 
 [npm-image]: https://img.shields.io/npm/v/handlebars-react.svg

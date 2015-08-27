@@ -1,5 +1,5 @@
 "use strict";
-//var cssobjectify = require("cssobjectify");
+var domStyleParser = require("dom-style-parser");
 var HandlebarsHtmlParser = require("handlebars-html-parser");
 var objectAssign = require("object-assign");
 var React = require("react");
@@ -7,9 +7,12 @@ var uglify = require("uglify-js");
 
 var defaultOptions = 
 {
+	//autoPrefixCSS: false,
 	beautify: true,
-	collapseWhitespace: true,
+	//minifyCSS: false,
+	//minifyJS: false,
 	multipleTopLevelNodes: false,
+	normalizeWhitespace: true,
 	prefix: "",
 	suffix: "",
 	useDomMethods: true
@@ -53,7 +56,7 @@ function compiler(options)
 	
 	this.parser = new HandlebarsHtmlParser(
 	{
-		collapseWhitespace: this.options.collapseWhitespace
+		normalizeWhitespace: this.options.normalizeWhitespace
 	});
 }
 
@@ -61,23 +64,28 @@ function compiler(options)
 
 compiler.prototype.compile = function(str)
 {
-	// Indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
-	var attrCounts    = [0];      // atributes per element in stack
+	// Stacks indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
 	var areDomMethods = [false];  // React.DOM… or React.createElement per element in stack
+	var attrCounts    = [0];      // atributes per element in stack
 	var childCounts   = [0];      // child count per element in stack
+	//var hbsCounts     = [0];      // Handlebar expression count per element's text content in stack
 	
-	var isAttribute      = false;  // <tag …
-	var isAttributeName  = false;  // <tag attr
-	var isAttributeValue = false;  // <tag attr="value"
-	var isClosingTag     = false;  // </…
-	var isComment        = false;  // <!--…
-	var isScriptTag      = false;  // <script
-	var isStyleAttribute = false;  // <tag style
-	var isTag            = false;  // <…
-	var isTagName        = false;  // <tag
+	var isAttribute       = false;  // <tag …
+	var isAttributeName   = false;  // <tag attr
+	var isAttributeValue  = false;  // <tag attr="value"
+	var isClosingTag      = false;  // </…
+	var isComment         = false;  // <!--…
+	var isStyleAttribute  = false;  // <tag style
+	var isTag             = false;  // <…>
+	var isTagName         = false;  // <tag
+	var isWithinScriptTag = false;  // <script>…
+	var isWithinStyleTag  = false;  // <style>…
 	var nodeStack = this.parser.parse(str);
+	var options = this.options;
 	var result = [];
-	var thisObj = this;
+	
+	//console.log(nodeStack);
+	//console.log(str);
 	
 	nodeStack.forEach( function(node, nodeIndex)
 	{
@@ -114,17 +122,18 @@ compiler.prototype.compile = function(str)
 			case HandlebarsHtmlParser.type.HTML_ATTR_END:
 			{
 				isAttribute = false;
+				isStyleAttribute = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_ATTR_START:
 			{
 				isAttribute = true;
 				
-				incrementSiblingCount(attrCounts);
+				incrementTop(attrCounts);
 				
-				if (count(attrCounts) <= 1)
+				if (getLast(attrCounts) <= 1)
 				{
-					if (isDomMethod(areDomMethods, childCounts) === false)
+					if (getLast(areDomMethods) === false)
 					{
 						// React.createElement("tag",
 						append(',', result);
@@ -189,16 +198,19 @@ compiler.prototype.compile = function(str)
 			{
 				if (isClosingTag === true)
 				{
-					if (count(attrCounts)>0 && count(childCounts)<=0)
+					if (getLast(attrCounts)>0 && getLast(childCounts)<=0)
 					{
 						append('}', result);
 					}
 					
 					append(')', result);
 					
-					areDomMethods.pop();
-					stopCount(attrCounts);
-					stopCount(childCounts);
+					removeTop(areDomMethods);
+					removeTop(attrCounts);
+					removeTop(childCounts);
+					
+					isWithinScriptTag = false;
+					isWithinStyleTag = false;
 				}
 				
 				isClosingTag = false;
@@ -216,11 +228,11 @@ compiler.prototype.compile = function(str)
 				{
 					beforeChild(areDomMethods, attrCounts, childCounts, result);
 					
-					areDomMethods.push(false);
+					addTop(areDomMethods, false);
 					
-					startCount(attrCounts);
-					incrementSiblingCount(childCounts);
-					startCount(childCounts);
+					addTop(attrCounts);
+					incrementTop(childCounts);
+					addTop(childCounts);
 					
 					append('React.createElement(', result);
 				}
@@ -249,23 +261,32 @@ compiler.prototype.compile = function(str)
 					{
 						if (isClosingTag === false)
 						{
-							if (thisObj.options.useDomMethods === true)
+							node.value = node.value.toLowerCase();
+							
+							if (options.useDomMethods === true)
 							{
 								// If tag name has a `React.DOM` function
-								if (typeof React.DOM[node.value.toLowerCase()] === "function")
+								if (typeof React.DOM[node.value] === "function")
 								{
-									// TODO :: wrap this so it's nicer?
+									// Change stack's top value
 									areDomMethods[areDomMethods.length-1] = true;
 									
 									// Change last/previous result index
-									result[result.length-1] = 'React.DOM.' + node.value.toLowerCase() + '(';
+									result[result.length-1] = 'React.DOM.' + node.value + '(';
 									
+									// Done -- no more code in this `case` will run
 									break;
 								}
 							}
 							
+							switch (node.value)
+							{
+								case "script":  isWithinScriptTag = true; break;
+								case "style":   isWithinStyleTag  = true; break;
+							}
+							
 							// React.createElement("tag"
-							append('"'+ node.value.toLowerCase() +'"', result);
+							append('"'+ node.value +'"', result);
 						}
 						// Else: closing tag name not appended
 					}
@@ -273,37 +294,58 @@ compiler.prototype.compile = function(str)
 					{
 						if (isAttributeName === true)
 						{
+							node.value = node.value.toLowerCase();
+							
+							if (node.value === "style") isStyleAttribute = true;
+							
 							// React.createElement("tag", {"attr"
 							// React.DOM.tag({"attr"
-							append('"'+ convertAttributeName(node.value.toLowerCase()) +'"', result);
+							append('"'+ convertAttributeName(node.value) +'"', result);
 						}
 						else if (isAttributeValue === true)
 						{
-							// React.createElement("tag", {"attr":"value"
-							// React.DOM.tag({"attr":"value"
-							append('"'+ node.value +'"', result);
+							if (isStyleAttribute === false)
+							{
+								// React.createElement("tag", {"attr":"value"
+								// React.DOM.tag({"attr":"value"
+								append('"'+ node.value +'"', result);
+							}
+							else
+							{
+								// React.createElement("tag", {"style":{…}
+								// React.DOM.tag({"style":{…}
+								append( parseInlineStyles(node.value, options), result );
+							}
 						}
 					}
 				}
 				else
 				{
-					// Support for non-html documents
-					//if (siblingCount(childCounts) > 0)
-					//{
-						beforeChild(areDomMethods, attrCounts, childCounts, result);
-					//}
+					beforeChild(areDomMethods, attrCounts, childCounts, result);
 					
-					incrementSiblingCount(childCounts);
+					incrementTop(childCounts);
 					
-					//if (typeof node.value==="string" || node.value instanceof String===true)
-					//{
+					if (isWithinScriptTag === true)
+					{
+						append( parseScript(node.value), result );
+					}
+					else if (isWithinStyleTag === true)
+					{
+						// TODO :: autoprefix
 						append('"'+ node.value +'"', result);
-					//}
-					//else
-					//{
-						// Support for null, undefined, numbers
-					//	append(node.value, result);
-					//}
+					}
+					else
+					{
+						//if (typeof node.value==="string" || node.value instanceof String===true)
+						//{
+							append('"'+ node.value +'"', result);
+						//}
+						//else
+						//{
+							// Support for null, undefined, numbers
+						//	append(node.value, result);
+						//}
+					}
 				}
 				
 				break;
@@ -318,7 +360,7 @@ compiler.prototype.compile = function(str)
 	});
 	
 	// If more than one top-level node
-	if (count(childCounts) > 1)
+	if (getLast(childCounts) > 1)
 	{
 		if (this.options.multipleTopLevelNodes === true)
 		{
@@ -328,14 +370,14 @@ compiler.prototype.compile = function(str)
 		}
 		else
 		{
-			throw new Error(count(childCounts) + "top-level nodes detected. Only one is currently supported by React.");
+			throw new Error(getLast(childCounts) + "top-level nodes detected. Only one is currently supported by React.");
 		}
 	}
 	
+	//console.log(result);
+	
 	result = finalize(result, this.options);
 	
-	//console.log(nodeStack);
-	//console.log(str);
 	//console.log(result);
 	
 	return result;
@@ -344,6 +386,15 @@ compiler.prototype.compile = function(str)
 
 
 //::: PRIVATE FUNCTIONS
+
+
+
+function addTop(stack, value)
+{
+	if (value === undefined) value = 0;
+	
+	stack.push(value);
+}
 
 
 
@@ -362,11 +413,11 @@ function beforeChild(areDomMethods, attrCounts, childCounts, resultArray)
 	// If not top-level node
 	if (childCounts.length > 1)
 	{
-		if (count(attrCounts) <= 0)
+		if (getLast(attrCounts) <= 0)
 		{
-			if (count(childCounts) <= 0)
+			if (getLast(childCounts) <= 0)
 			{
-				if (isDomMethod(areDomMethods, childCounts) === false)
+				if (getLast(areDomMethods) === false)
 				{
 					// React.createElement("tag",
 					append(',', resultArray);
@@ -393,7 +444,7 @@ function beforeChild(areDomMethods, attrCounts, childCounts, resultArray)
 		}
 	}
 	// If top-level node with siblings
-	else if (count(childCounts) > 0)
+	else if (getLast(childCounts) > 0)
 	{
 		// React.createElement(…),
 		// React.DOM.tag(…),
@@ -430,14 +481,6 @@ function convertAttributeName(attrName)
 }
 
 
-
-function count(stack)
-{
-	return stack[stack.length - 1];
-}
-
-
-
 function finalize(resultArray, options)
 {
 	var js = options.prefix + resultArray.join("") + options.suffix;
@@ -468,18 +511,16 @@ function finalize(resultArray, options)
 
 
 
-function incrementSiblingCount(stack)
+function getLast(stack)
 {
-	// Increase parent's children count
-	stack[stack.length - 1]++;
+	return stack[stack.length - 1];
 }
 
 
 
-// TODO :: is same as count() -- find common names
-function isDomMethod(stack)
+function incrementTop(stack)
 {
-	return stack[stack.length - 1];
+	stack[stack.length - 1]++;
 }
 
 
@@ -492,51 +533,14 @@ function parseScript(script)
 
 
 
-function parseInlineStyles(styles)
+function parseInlineStyles(styles, options)
 {
-	// TODO :: this lib just loads files :/
-	styles = cssobjectify(styles);
-	
-	return JSON.stringify(styles);
+	return JSON.stringify( domStyleParser(styles) );
 }
 
 
 
-function siblingCount(stack)
-{
-	var count;
-	
-	// If not "document" node
-	if (stack.length > 1)
-	{
-		count = stack[stack.length - 2];
-	}
-	// Support for multiple top-level nodes
-	else
-	{
-		count = stack[stack.length - 1];
-	}
-	
-	// Siblings cannot include self
-	count--;
-	
-	// No negative siblings
-	// TODO :: is this necessary?
-	count = Math.max(0, count);
-	
-	return count;
-}
-
-
-
-function startCount(stack)
-{
-	stack.push(0);
-}
-
-
-
-function stopCount(stack)
+function removeTop(stack)
 {
 	stack.pop();
 }

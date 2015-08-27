@@ -1,7 +1,7 @@
 {
   "name": "handlebars-react",
   "description": "Compile Handlebars templates to React.",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "license": "MIT",
   "homepage": "https://github.com/stevenvachon/handlebars-react",
   "author": {
@@ -9,7 +9,6 @@
     "email": "contact@svachon.com",
     "url": "http://www.svachon.com/"
   },
-  "main": "lib",
   "repository": {
     "type": "git",
     "url": "git://github.com/stevenvachon/handlebars-react.git"
@@ -18,13 +17,14 @@
     "url": "https://github.com/stevenvachon/handlebars-react/issues"
   },
   "dependencies": {
-    "cssobjectify": "~0.2.1",
+    "dom-style-parser": "^1.0.0",
     "handlebars-html-parser": "git://github.com/stevenvachon/handlebars-html-parser.git",
     "object-assign": "^4.0.1",
     "react": "^0.13.3",
     "uglify-js": "^2.4.24"
   },
   "devDependencies": {
+    "browserify": "^11.0.1",
     "chai": "^3.2.0",
     "mocha": "^2.2.5"
   },
@@ -32,6 +32,7 @@
     "node": ">= 0.10"
   },
   "scripts": {
+    "browserify": "browserify ./ --standalone HandlebarsReact | uglifyjs --compress --mangle -o browser/handlebars-react.min.js",
     "test": "mocha test/ --reporter spec --check-leaks --bail --no-exit"
   },
   "files": [
