@@ -4,7 +4,7 @@ var compiler = require("../");
 var expect = require("chai").expect;
 var objectAssign = require("object-assign");
 
-var defaultOptions = { beautify:false/*, multipleTopLevelNodes:true*/, useDomMethods:false };
+var defaultOptions = { beautify:false/*, multipleTopLevelNodes:true*/, normalizeWhitespace:false, useDomMethods:false };
 
 
 

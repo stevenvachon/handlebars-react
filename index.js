@@ -64,25 +64,28 @@ function compiler(options)
 
 compiler.prototype.compile = function(str)
 {
-	// Stacks indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
-	var areDomMethods = [false];  // React.DOM… or React.createElement per element in stack
-	var attrCounts    = [0];      // atributes per element in stack
-	var childCounts   = [0];      // child count per element in stack
-	//var hbsCounts     = [0];      // Handlebar expression count per element's text content in stack
-	
-	var isAttribute       = false;  // <tag …
-	var isAttributeName   = false;  // <tag attr
-	var isAttributeValue  = false;  // <tag attr="value"
-	var isClosingTag      = false;  // </…
-	var isComment         = false;  // <!--…
-	var isStyleAttribute  = false;  // <tag style
-	var isTag             = false;  // <…>
-	var isTagName         = false;  // <tag
-	var isWithinScriptTag = false;  // <script>…
-	var isWithinStyleTag  = false;  // <style>…
 	var nodeStack = this.parser.parse(str);
 	var options = this.options;
 	var result = [];
+	var tokens = 
+	{
+		// Stacks indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
+		areDomMethods:  [false],  // React.DOM… or React.createElement per element in stack
+		attrCounts:     [0],      // atributes per element in stack
+		childCounts:    [0],      // child count per element in stack
+		//hbsCounts:      [0],      // Handlebar expression count per element's text content in stack
+		
+		isAttribute:       false,  // <tag …
+		isAttributeName:   false,  // <tag attr
+		isAttributeValue:  false,  // <tag attr="value"
+		isClosingTag:      false,  // </…
+		isComment:         false,  // <!--…
+		isStyleAttribute:  false,  // <tag style
+		isTag:             false,  // <…>
+		isTagName:         false,  // <tag
+		isWithinScriptTag: false,  // <script>…
+		isWithinStyleTag:  false   // <style>…
+	};
 	
 	//console.log(nodeStack);
 	//console.log(str);
@@ -121,19 +124,19 @@ compiler.prototype.compile = function(str)
 			
 			case HandlebarsHtmlParser.type.HTML_ATTR_END:
 			{
-				isAttribute = false;
-				isStyleAttribute = false;
+				tokens.isAttribute = false;
+				tokens.isStyleAttribute = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_ATTR_START:
 			{
-				isAttribute = true;
+				tokens.isAttribute = true;
 				
-				incrementTop(attrCounts);
+				incrementTop(tokens.attrCounts);
 				
-				if (getLast(attrCounts) <= 1)
+				if (numAttributes(tokens) <= 1)
 				{
-					if (getLast(areDomMethods) === false)
+					if (isDomMethod(tokens) === false)
 					{
 						// React.createElement("tag",
 						append(',', result);
@@ -156,24 +159,24 @@ compiler.prototype.compile = function(str)
 			
 			case HandlebarsHtmlParser.type.HTML_ATTR_NAME_END:
 			{
-				isAttributeName = false;
+				tokens.isAttributeName = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_ATTR_NAME_START:
 			{
-				isAttributeName = true;
+				tokens.isAttributeName = true;
 				break;
 			}
 			
 			
 			case HandlebarsHtmlParser.type.HTML_ATTR_VALUE_END:
 			{
-				isAttributeValue = false;
+				tokens.isAttributeValue = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_ATTR_VALUE_START:
 			{
-				isAttributeValue = true;
+				tokens.isAttributeValue = true;
 				
 				append(':', result);
 				
@@ -183,12 +186,12 @@ compiler.prototype.compile = function(str)
 			
 			case HandlebarsHtmlParser.type.HTML_COMMENT_END:
 			{
-				isComment = false;
+				tokens.isComment = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_COMMENT_START:
 			{
-				isComment = true;
+				tokens.isComment = true;
 				break;
 			}
 			
@@ -196,43 +199,44 @@ compiler.prototype.compile = function(str)
 			// …>
 			case HandlebarsHtmlParser.type.HTML_TAG_END:
 			{
-				if (isClosingTag === true)
+				if (tokens.isClosingTag === true)
 				{
-					if (getLast(attrCounts)>0 && getLast(childCounts)<=0)
+					if (numAttributes(tokens)>0 && numChildren(tokens)<=0)
 					{
 						append('}', result);
 					}
 					
 					append(')', result);
 					
-					removeTop(areDomMethods);
-					removeTop(attrCounts);
-					removeTop(childCounts);
+					removeTop(tokens.areDomMethods);
+					removeTop(tokens.attrCounts);
+					removeTop(tokens.childCounts);
 					
-					isWithinScriptTag = false;
-					isWithinStyleTag = false;
+					tokens.isWithinScriptTag = false;
+					tokens.isWithinStyleTag = false;
 				}
 				
-				isClosingTag = false;
-				isTag = false;
+				tokens.isClosingTag = false;
+				tokens.isTag = false;
 				
 				break;
 			}
 			// <…
 			case HandlebarsHtmlParser.type.HTML_TAG_START:
 			{
-				isClosingTag = (node.closing === true);
-				isTag = true;
+				tokens.isClosingTag = (node.closing === true);
+				tokens.isTag = true;
 				
-				if (isClosingTag === false)
+				if (tokens.isClosingTag === false)
 				{
-					beforeChild(areDomMethods, attrCounts, childCounts, result);
+					// TODO :: move to handlebars-html-parser
+					addTop(tokens.areDomMethods, false);
 					
-					addTop(areDomMethods, false);
+					addTop(tokens.attrCounts);
+					incrementTop(tokens.childCounts);
+					addTop(tokens.childCounts);
 					
-					addTop(attrCounts);
-					incrementTop(childCounts);
-					addTop(childCounts);
+					beforeChild(tokens, result, true);
 					
 					append('React.createElement(', result);
 				}
@@ -243,23 +247,23 @@ compiler.prototype.compile = function(str)
 			
 			case HandlebarsHtmlParser.type.HTML_TAG_NAME_END:
 			{
-				isTagName = false;
+				tokens.isTagName = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_TAG_NAME_START:
 			{
-				isTagName = true;
+				tokens.isTagName = true;
 				break;
 			}
 			
 			
 			case HandlebarsHtmlParser.type.TEXT:
 			{
-				if (isTag === true)
+				if (tokens.isTag === true)
 				{
-					if (isTagName === true)
+					if (tokens.isTagName === true)
 					{
-						if (isClosingTag === false)
+						if (tokens.isClosingTag === false)
 						{
 							node.value = node.value.toLowerCase();
 							
@@ -269,7 +273,7 @@ compiler.prototype.compile = function(str)
 								if (typeof React.DOM[node.value] === "function")
 								{
 									// Change stack's top value
-									areDomMethods[areDomMethods.length-1] = true;
+									tokens.areDomMethods[tokens.areDomMethods.length-1] = true;
 									
 									// Change last/previous result index
 									result[result.length-1] = 'React.DOM.' + node.value + '(';
@@ -281,8 +285,8 @@ compiler.prototype.compile = function(str)
 							
 							switch (node.value)
 							{
-								case "script":  isWithinScriptTag = true; break;
-								case "style":   isWithinStyleTag  = true; break;
+								case "script":  tokens.isWithinScriptTag = true; break;
+								case "style":   tokens.isWithinStyleTag  = true; break;
 							}
 							
 							// React.createElement("tag"
@@ -290,21 +294,21 @@ compiler.prototype.compile = function(str)
 						}
 						// Else: closing tag name not appended
 					}
-					else if (isAttribute === true)
+					else if (tokens.isAttribute === true)
 					{
-						if (isAttributeName === true)
+						if (tokens.isAttributeName === true)
 						{
 							node.value = node.value.toLowerCase();
 							
-							if (node.value === "style") isStyleAttribute = true;
+							if (node.value === "style") tokens.isStyleAttribute = true;
 							
 							// React.createElement("tag", {"attr"
 							// React.DOM.tag({"attr"
 							append('"'+ convertAttributeName(node.value) +'"', result);
 						}
-						else if (isAttributeValue === true)
+						else if (tokens.isAttributeValue === true)
 						{
-							if (isStyleAttribute === false)
+							if (tokens.isStyleAttribute === false)
 							{
 								// React.createElement("tag", {"attr":"value"
 								// React.DOM.tag({"attr":"value"
@@ -321,15 +325,15 @@ compiler.prototype.compile = function(str)
 				}
 				else
 				{
-					beforeChild(areDomMethods, attrCounts, childCounts, result);
+					incrementTop(tokens.childCounts);
 					
-					incrementTop(childCounts);
+					beforeChild(tokens, result);
 					
-					if (isWithinScriptTag === true)
+					if (tokens.isWithinScriptTag === true)
 					{
 						append( parseScript(node.value), result );
 					}
-					else if (isWithinStyleTag === true)
+					else if (tokens.isWithinStyleTag === true)
 					{
 						// TODO :: autoprefix
 						append('"'+ node.value +'"', result);
@@ -360,7 +364,7 @@ compiler.prototype.compile = function(str)
 	});
 	
 	// If more than one top-level node
-	if (getLast(childCounts) > 1)
+	if (numChildren(tokens) > 1)
 	{
 		if (this.options.multipleTopLevelNodes === true)
 		{
@@ -370,7 +374,7 @@ compiler.prototype.compile = function(str)
 		}
 		else
 		{
-			throw new Error(getLast(childCounts) + "top-level nodes detected. Only one is currently supported by React.");
+			throw new Error(numChildren(tokens) + "top-level nodes detected. Only one is currently supported by React.");
 		}
 	}
 	
@@ -408,16 +412,21 @@ function append(string, resultArray)
 
 
 
-function beforeChild(areDomMethods, attrCounts, childCounts, resultArray)
+function beforeChild(tokens, resultArray, checkParent)
 {
-	// If not top-level node
-	if (childCounts.length > 1)
+	var _isDomMethod   = checkParent!==true ? isDomMethod(tokens)   : isParentDomMethod(tokens);
+	var _numAttributes = checkParent!==true ? numAttributes(tokens) : numParentAttributes(tokens);
+	var _numChildren   = checkParent!==true ? numChildren(tokens)   : numParentChildren(tokens);
+	
+	var _isTopLevelChild = checkParent!==true ? tokens.childCounts.length>1 : tokens.childCounts.length>2;
+	
+	if (_isTopLevelChild === true)
 	{
-		if (getLast(attrCounts) <= 0)
+		if (_numAttributes <= 0)
 		{
-			if (getLast(childCounts) <= 0)
+			if (_numChildren <= 1)
 			{
-				if (getLast(areDomMethods) === false)
+				if (_isDomMethod !== true)
 				{
 					// React.createElement("tag",
 					append(',', resultArray);
@@ -444,7 +453,7 @@ function beforeChild(areDomMethods, attrCounts, childCounts, resultArray)
 		}
 	}
 	// If top-level node with siblings
-	else if (getLast(childCounts) > 0)
+	else if (_numChildren > 1)
 	{
 		// React.createElement(…),
 		// React.DOM.tag(…),
@@ -479,6 +488,7 @@ function convertAttributeName(attrName)
 	
 	return attrName;
 }
+
 
 
 function finalize(resultArray, options)
@@ -518,9 +528,70 @@ function getLast(stack)
 
 
 
+function getSecondLast(stack)
+{
+	return stack[stack.length - 2];
+}
+
+
+
 function incrementTop(stack)
 {
 	stack[stack.length - 1]++;
+}
+
+
+
+function isDomMethod(tokens)
+{
+	return getLast(tokens.areDomMethods);
+}
+
+
+
+function isParentDomMethod(tokens)
+{
+	var result = getSecondLast(tokens.areDomMethods);
+	
+	if (result === undefined) result = -1;
+	
+	return result;
+}
+
+
+
+function numAttributes(tokens)
+{
+	return getLast(tokens.attrCounts);
+}
+
+
+
+function numChildren(tokens)
+{
+	return getLast(tokens.childCounts);
+}
+
+
+
+function numParentAttributes(tokens)
+{
+	var result = getSecondLast(tokens.attrCounts);
+	
+	if (result === undefined) result = -1;
+	
+	return result;
+}
+
+
+
+function numParentChildren(tokens)
+{
+	var result = getSecondLast(tokens.childCounts);
+	
+	if (result === undefined) result = -1;
+	
+	return result;
 }
 
 
@@ -535,6 +606,7 @@ function parseScript(script)
 
 function parseInlineStyles(styles, options)
 {
+	// TODO :: autoprefix
 	return JSON.stringify( domStyleParser(styles) );
 }
 

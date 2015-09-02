@@ -52,7 +52,7 @@ When `true`, output will be formatted for increased legibility.
 ### options.normalizeWhitespace
 Type: `Boolean`  
 Default value: `true`  
-When `true`, standard whitespace will be replaced with a single space. For more info, see [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
+When `true`, multiple whitespace characters will be replaced with a single space. For more info, see [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
 
 ### options.useDomMethods
 Type: `Boolean`  
@@ -67,7 +67,7 @@ When `true`, available `React.DOM` convenience functions will be used instead of
 
 
 ## Changelog
-* 0.0.1–0.0.9 pre-releases
+* 0.0.1–0.0.10 pre-releases
 
 
 [npm-image]: https://img.shields.io/npm/v/handlebars-react.svg
