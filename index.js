@@ -64,34 +64,26 @@ function compiler(options)
 
 compiler.prototype.compile = function(str)
 {
+	var compilerState = 
+	{
+		// React.DOM… or React.createElement per element in stack
+		// Stack indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
+		areDomMethods: [false]
+	};
+	
 	var nodeStack = this.parser.parse(str);
 	var options = this.options;
+	var parserState;
 	var result = [];
-	var tokens = 
-	{
-		// Stacks indexed by parent tag depth -- first index is a "document" node (root/top-level nodes container)
-		areDomMethods:  [false],  // React.DOM… or React.createElement per element in stack
-		attrCounts:     [0],      // atributes per element in stack
-		childCounts:    [0],      // child count per element in stack
-		//hbsCounts:      [0],      // Handlebar expression count per element's text content in stack
-		
-		isAttribute:       false,  // <tag …
-		isAttributeName:   false,  // <tag attr
-		isAttributeValue:  false,  // <tag attr="value"
-		isClosingTag:      false,  // </…
-		isComment:         false,  // <!--…
-		isStyleAttribute:  false,  // <tag style
-		isTag:             false,  // <…>
-		isTagName:         false,  // <tag
-		isWithinScriptTag: false,  // <script>…
-		isWithinStyleTag:  false   // <style>…
-	};
 	
 	//console.log(nodeStack);
 	//console.log(str);
 	
-	nodeStack.forEach( function(node, nodeIndex)
+	HandlebarsHtmlParser.each(nodeStack, function(node, state)
 	{
+		// Parent scope access
+		parserState = state;
+		
 		switch (node.type)
 		{
 			case HandlebarsHtmlParser.type.HBS_EXPRESSION_END:
@@ -124,33 +116,27 @@ compiler.prototype.compile = function(str)
 			
 			case HandlebarsHtmlParser.type.HTML_ATTR_END:
 			{
-				tokens.isAttribute = false;
-				tokens.isStyleAttribute = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_ATTR_START:
 			{
-				tokens.isAttribute = true;
-				
-				incrementTop(tokens.attrCounts);
-				
-				if (numAttributes(tokens) <= 1)
+				if (numAttributes(parserState) <= 1)
 				{
-					if (isDomMethod(tokens) === false)
+					if (isDomMethod(compilerState) === false)
 					{
 						// React.createElement("tag",
-						append(',', result);
+						result.push(",");
 					}
 					
 					// React.createElement("tag", {
 					// React.DOM.tag({
-					append('{', result);
+					result.push("{");
 				}
 				else
 				{
 					// React.createElement("tag", {attr:"value",
 					// React.DOM.tag({attr:value,
-					append(',', result);
+					result.push(",");
 				}
 				
 				break;
@@ -159,39 +145,31 @@ compiler.prototype.compile = function(str)
 			
 			case HandlebarsHtmlParser.type.HTML_ATTR_NAME_END:
 			{
-				tokens.isAttributeName = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_ATTR_NAME_START:
 			{
-				tokens.isAttributeName = true;
 				break;
 			}
 			
 			
 			case HandlebarsHtmlParser.type.HTML_ATTR_VALUE_END:
 			{
-				tokens.isAttributeValue = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_ATTR_VALUE_START:
 			{
-				tokens.isAttributeValue = true;
-				
-				append(':', result);
-				
+				result.push(":");
 				break;
 			}
 			
 			
 			case HandlebarsHtmlParser.type.HTML_COMMENT_END:
 			{
-				tokens.isComment = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_COMMENT_START:
 			{
-				tokens.isComment = true;
 				break;
 			}
 			
@@ -199,46 +177,30 @@ compiler.prototype.compile = function(str)
 			// …>
 			case HandlebarsHtmlParser.type.HTML_TAG_END:
 			{
-				if (tokens.isClosingTag === true)
+				if (parserState.isClosingTag === true)
 				{
-					if (numAttributes(tokens)>0 && numChildren(tokens)<=0)
+					if (numAttributes(parserState)>0 && numChildren(parserState)<=0)
 					{
-						append('}', result);
+						result.push("}");
 					}
 					
-					append(')', result);
+					result.push(")");
 					
-					removeTop(tokens.areDomMethods);
-					removeTop(tokens.attrCounts);
-					removeTop(tokens.childCounts);
-					
-					tokens.isWithinScriptTag = false;
-					tokens.isWithinStyleTag = false;
+					compilerState.areDomMethods.pop();
 				}
-				
-				tokens.isClosingTag = false;
-				tokens.isTag = false;
 				
 				break;
 			}
 			// <…
 			case HandlebarsHtmlParser.type.HTML_TAG_START:
 			{
-				tokens.isClosingTag = (node.closing === true);
-				tokens.isTag = true;
-				
-				if (tokens.isClosingTag === false)
+				if (parserState.isClosingTag === false)
 				{
-					// TODO :: move to handlebars-html-parser
-					addTop(tokens.areDomMethods, false);
+					compilerState.areDomMethods.push(false);
 					
-					addTop(tokens.attrCounts);
-					incrementTop(tokens.childCounts);
-					addTop(tokens.childCounts);
+					beforeChild(parserState, compilerState, result, true);
 					
-					beforeChild(tokens, result, true);
-					
-					append('React.createElement(', result);
+					result.push("React.createElement(");
 				}
 				
 				break;
@@ -247,107 +209,91 @@ compiler.prototype.compile = function(str)
 			
 			case HandlebarsHtmlParser.type.HTML_TAG_NAME_END:
 			{
-				tokens.isTagName = false;
 				break;
 			}
 			case HandlebarsHtmlParser.type.HTML_TAG_NAME_START:
 			{
-				tokens.isTagName = true;
 				break;
 			}
 			
 			
 			case HandlebarsHtmlParser.type.TEXT:
 			{
-				if (tokens.isTag === true)
+				if (parserState.isTag === true)
 				{
-					if (tokens.isTagName === true)
+					if (parserState.isTagName === true)
 					{
-						if (tokens.isClosingTag === false)
+						if (parserState.isClosingTag === false)
 						{
-							node.value = node.value.toLowerCase();
-							
 							if (options.useDomMethods === true)
 							{
 								// If tag name has a `React.DOM` function
 								if (typeof React.DOM[node.value] === "function")
 								{
 									// Change stack's top value
-									tokens.areDomMethods[tokens.areDomMethods.length-1] = true;
+									compilerState.areDomMethods[compilerState.areDomMethods.length-1] = true;
 									
 									// Change last/previous result index
-									result[result.length-1] = 'React.DOM.' + node.value + '(';
+									result[result.length-1] = "React.DOM." + node.value + "(";
 									
 									// Done -- no more code in this `case` will run
 									break;
 								}
 							}
 							
-							switch (node.value)
-							{
-								case "script":  tokens.isWithinScriptTag = true; break;
-								case "style":   tokens.isWithinStyleTag  = true; break;
-							}
-							
 							// React.createElement("tag"
-							append('"'+ node.value +'"', result);
+							result.push('"'+ node.value +'"');
 						}
-						// Else: closing tag name not appended
+						// Else: closing tag name excluded from result
 					}
-					else if (tokens.isAttribute === true)
+					else if (parserState.isAttribute === true)
 					{
-						if (tokens.isAttributeName === true)
+						if (parserState.isAttributeName === true)
 						{
-							node.value = node.value.toLowerCase();
-							
-							if (node.value === "style") tokens.isStyleAttribute = true;
-							
 							// React.createElement("tag", {"attr"
 							// React.DOM.tag({"attr"
-							append('"'+ convertAttributeName(node.value) +'"', result);
+							result.push('"'+ convertAttributeName(node.value) +'"');
 						}
-						else if (tokens.isAttributeValue === true)
+						else if (parserState.isAttributeValue === true)
 						{
-							if (tokens.isStyleAttribute === false)
+							if (parserState.isStyleAttribute === false)
 							{
 								// React.createElement("tag", {"attr":"value"
 								// React.DOM.tag({"attr":"value"
-								append('"'+ node.value +'"', result);
+								result.push('"'+ node.value +'"');
 							}
 							else
 							{
 								// React.createElement("tag", {"style":{…}
 								// React.DOM.tag({"style":{…}
-								append( parseInlineStyles(node.value, options), result );
+								result.push( parseInlineStyles(node.value, options) );
 							}
 						}
 					}
 				}
 				else
 				{
-					incrementTop(tokens.childCounts);
+					beforeChild(parserState, compilerState, result);
 					
-					beforeChild(tokens, result);
-					
-					if (tokens.isWithinScriptTag === true)
+					if (parserState.isWithinScriptTag === true)
 					{
-						append( parseScript(node.value), result );
+						result.push( parseScript(node.value) );
 					}
-					else if (tokens.isWithinStyleTag === true)
+					else if (parserState.isWithinStyleTag === true)
 					{
 						// TODO :: autoprefix
-						append('"'+ node.value +'"', result);
+						result.push('"'+ node.value +'"');
 					}
 					else
 					{
 						//if (typeof node.value==="string" || node.value instanceof String===true)
 						//{
-							append('"'+ node.value +'"', result);
+							result.push('"'+ node.value +'"');
 						//}
 						//else
 						//{
 							// Support for null, undefined, numbers
-						//	append(node.value, result);
+						//	result.push(node.value);
 						//}
 					}
 				}
@@ -364,24 +310,22 @@ compiler.prototype.compile = function(str)
 	});
 	
 	// If more than one top-level node
-	if (numChildren(tokens) > 1)
+	if (numChildren(parserState) > 1)
 	{
-		if (this.options.multipleTopLevelNodes === true)
+		if (options.multipleTopLevelNodes === true)
 		{
 			// Contain comma-separated list in an Array
-			result.unshift('[');
-			result.push(']');
+			result.unshift("[");
+			result.push("]");
 		}
 		else
 		{
-			throw new Error(numChildren(tokens) + "top-level nodes detected. Only one is currently supported by React.");
+			throw new Error(numChildren(parserState) + " top-level nodes detected. Only 1 is currently supported by React.");
 		}
 	}
 	
 	//console.log(result);
-	
-	result = finalize(result, this.options);
-	
+	result = finalize(result, options);
 	//console.log(result);
 	
 	return result;
@@ -393,32 +337,13 @@ compiler.prototype.compile = function(str)
 
 
 
-function addTop(stack, value)
+function beforeChild(parserState, compilerState, result, checkParent)
 {
-	if (value === undefined) value = 0;
+	var _isDomMethod   = checkParent!==true ? isDomMethod(compilerState) : isParentDomMethod(compilerState);
+	var _numAttributes = checkParent!==true ? numAttributes(parserState) : numParentAttributes(parserState);
+	var _numChildren   = checkParent!==true ? numChildren(parserState)   : numParentChildren(parserState);
 	
-	stack.push(value);
-}
-
-
-
-function append(string, resultArray)
-{
-	if (string != null && string !== "")
-	{
-		resultArray.push(string);
-	}
-}
-
-
-
-function beforeChild(tokens, resultArray, checkParent)
-{
-	var _isDomMethod   = checkParent!==true ? isDomMethod(tokens)   : isParentDomMethod(tokens);
-	var _numAttributes = checkParent!==true ? numAttributes(tokens) : numParentAttributes(tokens);
-	var _numChildren   = checkParent!==true ? numChildren(tokens)   : numParentChildren(tokens);
-	
-	var _isTopLevelChild = checkParent!==true ? tokens.childCounts.length>1 : tokens.childCounts.length>2;
+	var _isTopLevelChild = checkParent!==true ? parserState.childCounts.length>1 : parserState.childCounts.length>2;
 	
 	if (_isTopLevelChild === true)
 	{
@@ -429,27 +354,27 @@ function beforeChild(tokens, resultArray, checkParent)
 				if (_isDomMethod !== true)
 				{
 					// React.createElement("tag",
-					append(',', resultArray);
+					result.push(",");
 				}
 				
 				// React.createElement("tag", null,
 				// React.DOM.tag(null,
-				append('null', resultArray);
-				append(',', resultArray);
+				result.push("null");
+				result.push(",");
 			}
 			else
 			{
 				// React.createElement("tag", {"attr":"value"}, sibling,
 				// React.DOM.tag({"attr":"value"}, sibling,
-				append(',', resultArray);
+				result.push(",");
 			}
 		}
 		else
 		{
 			// React.createElement("tag", {"attr":"value"},
 			// React.DOM.tag({"attr":"value"},
-			append('}', resultArray);
-			append(',', resultArray);
+			result.push("}");
+			result.push(",");
 		}
 	}
 	// If top-level node with siblings
@@ -458,7 +383,7 @@ function beforeChild(tokens, resultArray, checkParent)
 		// React.createElement(…),
 		// React.DOM.tag(…),
 		// "text",
-		append(',', resultArray);
+		result.push(",");
 	}
 }
 
@@ -491,9 +416,9 @@ function convertAttributeName(attrName)
 
 
 
-function finalize(resultArray, options)
+function finalize(result, options)
 {
-	var js = options.prefix + resultArray.join("") + options.suffix;
+	var js = options.prefix + result.join("") + options.suffix;
 	
 	// Check that the compiled code is valid
 	try
@@ -535,23 +460,16 @@ function getSecondLast(stack)
 
 
 
-function incrementTop(stack)
+function isDomMethod(compilerState)
 {
-	stack[stack.length - 1]++;
+	return getLast(compilerState.areDomMethods);
 }
 
 
 
-function isDomMethod(tokens)
+function isParentDomMethod(compilerState)
 {
-	return getLast(tokens.areDomMethods);
-}
-
-
-
-function isParentDomMethod(tokens)
-{
-	var result = getSecondLast(tokens.areDomMethods);
+	var result = getSecondLast(compilerState.areDomMethods);
 	
 	if (result === undefined) result = -1;
 	
@@ -560,23 +478,23 @@ function isParentDomMethod(tokens)
 
 
 
-function numAttributes(tokens)
+function numAttributes(parserState)
 {
-	return getLast(tokens.attrCounts);
+	return getLast(parserState.attrCounts);
 }
 
 
 
-function numChildren(tokens)
+function numChildren(parserState)
 {
-	return getLast(tokens.childCounts);
+	return getLast(parserState.childCounts);
 }
 
 
 
-function numParentAttributes(tokens)
+function numParentAttributes(parserState)
 {
-	var result = getSecondLast(tokens.attrCounts);
+	var result = getSecondLast(parserState.attrCounts);
 	
 	if (result === undefined) result = -1;
 	
@@ -585,9 +503,9 @@ function numParentAttributes(tokens)
 
 
 
-function numParentChildren(tokens)
+function numParentChildren(parserState)
 {
-	var result = getSecondLast(tokens.childCounts);
+	var result = getSecondLast(parserState.childCounts);
 	
 	if (result === undefined) result = -1;
 	
@@ -608,13 +526,6 @@ function parseInlineStyles(styles, options)
 {
 	// TODO :: autoprefix
 	return JSON.stringify( domStyleParser(styles) );
-}
-
-
-
-function removeTop(stack)
-{
-	stack.pop();
 }
 
 

@@ -67,7 +67,7 @@ When `true`, available `React.DOM` convenience functions will be used instead of
 
 
 ## Changelog
-* 0.0.1–0.0.10 pre-releases
+* 0.0.1–0.0.11 pre-releases
 
 
 [npm-image]: https://img.shields.io/npm/v/handlebars-react.svg
