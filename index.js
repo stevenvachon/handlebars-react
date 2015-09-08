@@ -252,7 +252,7 @@ compiler.prototype.compile = function(str)
 						{
 							// React.createElement("tag", {"attr"
 							// React.DOM.tag({"attr"
-							result.push('"'+ convertAttributeName(node.value) +'"');
+							result.push( transformAttributeName(node.value) );
 						}
 						else if (parserState.isAttributeValue === true)
 						{
@@ -260,13 +260,14 @@ compiler.prototype.compile = function(str)
 							{
 								// React.createElement("tag", {"attr":"value"
 								// React.DOM.tag({"attr":"value"
-								result.push('"'+ node.value +'"');
+								// TODO :: run transformScript if script event attribute
+								result.push( safeString(node.value) );
 							}
 							else
 							{
 								// React.createElement("tag", {"style":{…}
 								// React.DOM.tag({"style":{…}
-								result.push( parseInlineStyles(node.value, options) );
+								result.push( transformInlineStyles(node.value, options) );
 							}
 						}
 					}
@@ -277,18 +278,23 @@ compiler.prototype.compile = function(str)
 					
 					if (parserState.isWithinScriptTag === true)
 					{
-						result.push( parseScript(node.value) );
+						// React.createElement("script", …, "script()"
+						// TODO :: only do so if mimetype is "text/javascript", "" or undefined
+						result.push( transformScript(node.value, options) );
 					}
 					else if (parserState.isWithinStyleTag === true)
 					{
-						// TODO :: autoprefix
-						result.push('"'+ node.value +'"');
+						// React.createElement("style", …, "style:sheet"
+						// TODO :: only do so if mimetype is "text/css", "" or undefined
+						result.push( transformStylesheet(node.value, options) );
 					}
 					else
 					{
 						//if (typeof node.value==="string" || node.value instanceof String===true)
 						//{
-							result.push('"'+ node.value +'"');
+							// React.createElement("tag", …, "text"
+							// React.DOM.tag(…, "text"
+							result.push( safeString(node.value) );
 						//}
 						//else
 						//{
@@ -385,33 +391,6 @@ function beforeChild(parserState, compilerState, result, checkParent)
 		// "text",
 		result.push(",");
 	}
-}
-
-
-
-function convertAttributeName(attrName)
-{
-	// TODO :: is this necessary?
-	// TODO :: find a lib for this as there're more?
-	switch (attrName)
-	{
-		case "class":
-		{
-			attrName = "className";
-			break;
-		}
-		case "for":
-		{
-			attrName = "htmlFor";
-			break;
-		}
-		default:
-		{
-			// TODO :: camel-case it?
-		}
-	}
-	
-	return attrName;
 }
 
 
@@ -514,18 +493,61 @@ function numParentChildren(parserState)
 
 
 
-function parseScript(script)
+function safeString(string)
 {
-	// Converts whitespace, unicode chars, etc
-	return JSON.stringify(script);
+	// Converts whitespace, unicode chars, adds/escapes quotes, etc
+	return JSON.stringify(string);
 }
 
 
 
-function parseInlineStyles(styles, options)
+function transformAttributeName(attrName)
+{
+	// TODO :: is this necessary?
+	// TODO :: find a lib for this as there're more?
+	switch (attrName)
+	{
+		case "class":
+		{
+			attrName = "className";
+			break;
+		}
+		case "for":
+		{
+			attrName = "htmlFor";
+			break;
+		}
+		default:
+		{
+			// TODO :: camel-case it?
+		}
+	}
+	
+	return '"'+ attrName +'"';
+}
+
+
+
+function transformInlineStyles(styles, options)
 {
 	// TODO :: autoprefix
 	return JSON.stringify( domStyleParser(styles) );
+}
+
+
+
+function transformScript(script, options)
+{
+	// TODO :: uglify
+	return safeString(script);
+}
+
+
+
+function transformStylesheet(stylesheet, options)
+{
+	// TODO :: autoprefix
+	return safeString(stylesheet);
 }
 
 

@@ -175,10 +175,21 @@ describe("Basic HTML", function()
 	
 	describe("edge cases", function()
 	{
+		it("should support text content with special characters", function(done)
+		{
+			var result = new compiler( options() ).compile('<tag>"text©&copy;"</tag>');
+			var expectedResult = 'React.createElement("tag",null,"\\\"text©©\\\"")';
+			
+			expect(result).to.equal(expectedResult);
+			done();
+		});
+		
+		
+		
 		it("should support <script> tags", function(done)
 		{
-			var result = new compiler( options() ).compile('<script>function a(arg){ b(arg) }</script>');
-			var expectedResult = 'React.createElement("script",null,"function a(arg){ b(arg) }")';
+			var result = new compiler( options() ).compile('<script>function a(arg){ b(arg,"arg") }</script>');
+			var expectedResult = 'React.createElement("script",null,"function a(arg){ b(arg,\\\"arg\\\") }")';
 			
 			expect(result).to.equal(expectedResult);
 			done();
