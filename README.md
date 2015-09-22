@@ -52,22 +52,29 @@ When `true`, output will be formatted for increased legibility.
 ### options.normalizeWhitespace
 Type: `Boolean`  
 Default value: `true`  
-When `true`, multiple whitespace characters will be replaced with a single space. For more info, see [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
+See [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
 
 ### options.useDomMethods
 Type: `Boolean`  
 Default value: `true`  
 When `true`, available `React.DOM` convenience functions will be used instead of `React.createElement()`.
 
+### options.xmlMode
+Type: `Boolean`  
+Default value: `false`  
+See [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
+
 
 ## Roadmap Features
-* support `<script type="text/x-handlebars-template">`, etc
-* add `convertHbsComments` option for converting Handlebars comments to HTML comments
-* add `ignoreHtmlComments` option when React supports such ([react#2810](https://github.com/facebook/react/issues/2810))
+* support `<template>`
+* `convertHbsComments` to JavaScript block comments (or HTML comments?)
+* `convertHtmlComments` to JavaScript block comments
+* `ignoreComments` option when React supports such ([react#2810](https://github.com/facebook/react/issues/2810))
+* `trimWhitespace` option to remove spaces between elements (`<tag/> a word <tag/>` to `<tag/>a word<tag/>`)?
 
 
 ## Changelog
-* 0.0.1–0.0.12 pre-releases
+* 0.0.1–0.0.13 pre-releases
 
 
 [npm-image]: https://img.shields.io/npm/v/handlebars-react.svg

@@ -177,8 +177,8 @@ describe("Basic HTML", function()
 	{
 		it("should support text content with special characters", function(done)
 		{
-			var result = new compiler( options() ).compile('<tag>"text©&copy;"</tag>');
-			var expectedResult = 'React.createElement("tag",null,"\\\"text©©\\\"")';
+			var result = new compiler( options() ).compile('<tag>"text©&copy;&nbsp;"</tag>');
+			var expectedResult = 'React.createElement("tag",null,"\\\"text©© \\\"")';
 			
 			expect(result).to.equal(expectedResult);
 			done();
@@ -190,6 +190,29 @@ describe("Basic HTML", function()
 		{
 			var result = new compiler( options() ).compile('<script>function a(arg){ b(arg,"arg") }</script>');
 			var expectedResult = 'React.createElement("script",null,"function a(arg){ b(arg,\\\"arg\\\") }")';
+			
+			expect(result).to.equal(expectedResult);
+			done();
+		});
+		
+		
+		
+		it("should support unrecognized <script> tags", function(done)
+		{
+			var result = new compiler( options() ).compile('<script type="text/template"><tag attr=\"value\">text</tag></script>');
+			var expectedResult = 'React.createElement("script",{"type":"text/template"},"<tag attr=\\\"value\\\">text</tag>")';
+			
+			expect(result).to.equal(expectedResult);
+			done();
+		});
+		
+		
+		
+		// TODO :: parse as text?
+		it.skip("should support <template> tags", function(done)
+		{
+			var result = new compiler( options() ).compile('<template><tag attr=\"value\">text</tag></template>');
+			var expectedResult = 'React.createElement("template",null,"<tag attr=\\\"value\\\">text</tag>")';
 			
 			expect(result).to.equal(expectedResult);
 			done();
@@ -246,5 +269,21 @@ describe("Basic HTML", function()
 			expect(result).to.equal(expectedResult);
 			done();
 		});
+		
+		
+		
+		it("normalizeWhitespace = true", function(done)
+		{
+			var result = new compiler( options({ normalizeWhitespace:true }) ).compile('<tag>text©&copy; &nbsp;  </tag>');
+			var expectedResult = 'React.createElement("tag",null,"text©©   ")';  // non-breaking space remains
+			
+			expect(result).to.equal(expectedResult);
+			done();
+		});
+		
+		
+		
+		// `multipleTopLevelNodes` is tested above
+		// `useDomMethods` is tested above
 	});
 });

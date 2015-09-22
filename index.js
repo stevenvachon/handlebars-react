@@ -15,38 +15,9 @@ var defaultOptions =
 	normalizeWhitespace: true,
 	prefix: "",
 	suffix: "",
-	useDomMethods: true
+	useDomMethods: true,
+	xmlMode: false
 };
-
-
-
-/*var NodeType = 
-{
-	HBS_EXPRESSION: "hbsExpression",
-	
-	HBS_EXPRESSION_END:        "hbsExpressionEnd",
-	HBS_EXPRESSION_HASH_PARAM: "hbsExpressionHashParam",
-	HBS_EXPRESSION_PARAM:      "hbsExpressionParam",
-	HBS_EXPRESSION_PATH:       "hbsExpressionPath",
-	HBS_EXPRESSION_START:      "hbsExpressionStart",
-	HBS_TAG_END:               "hbsTagEnd",
-	HBS_TAG_START:             "hbsTagStart",
-	
-	HTML_ATTR_END:             "htmlAttrEnd",
-	HTML_ATTR_NAME_END:        "htmlAttrNameEnd",
-	HTML_ATTR_NAME_START:      "htmlAttrNameStart",
-	HTML_ATTR_START:           "htmlAttrStart",
-	HTML_ATTR_VALUE_END:       "htmlAttrValueEnd",
-	HTML_ATTR_VALUE_START:     "htmlAttrValueStart",
-	HTML_COMMENT_END:          "htmlCommentEnd",
-	HTML_COMMENT_START:        "htmlCommentStart",
-	HTML_TAG_END:              "htmlTagEnd",
-	HTML_TAG_NAME_END:         "htmlTagNameEnd",
-	HTML_TAG_NAME_START:       "htmlTagNameStart",
-	HTML_TAG_START:            "htmlTagStart",
-	
-	TEXT: "text"
-};*/
 
 
 
@@ -56,7 +27,8 @@ function compiler(options)
 	
 	this.parser = new HandlebarsHtmlParser(
 	{
-		normalizeWhitespace: this.options.normalizeWhitespace
+		normalizeWhitespace: this.options.normalizeWhitespace,
+		xmlMode: this.options.xmlMode
 	});
 }
 
@@ -64,6 +36,8 @@ function compiler(options)
 
 compiler.prototype.compile = function(str)
 {
+	var nodeStack,parserState;
+	
 	var compilerState = 
 	{
 		// React.DOM… or React.createElement per element in stack
@@ -71,15 +45,10 @@ compiler.prototype.compile = function(str)
 		areDomMethods: [false]
 	};
 	
-	var nodeStack = this.parser.parse(str);
 	var options = this.options;
-	var parserState;
 	var result = [];
 	
-	//console.log(nodeStack);
-	//console.log(str);
-	
-	HandlebarsHtmlParser.each(nodeStack, function(node, state)
+	nodeStack = this.parser.parse(str, function(node, state)
 	{
 		// Parent scope access
 		parserState = state;
@@ -109,6 +78,16 @@ compiler.prototype.compile = function(str)
 			
 			
 			case HandlebarsHtmlParser.type.HBS_EXPRESSION_PATH:
+			{
+				break;
+			}
+			
+			
+			case HandlebarsHtmlParser.type.HBS_TAG_END:
+			{
+				break;
+			}
+			case HandlebarsHtmlParser.type.HBS_TAG_START:
 			{
 				break;
 			}
@@ -256,18 +235,24 @@ compiler.prototype.compile = function(str)
 						}
 						else if (parserState.isAttributeValue === true)
 						{
-							if (parserState.isStyleAttribute === false)
+							// TODO :: support `href="javscript:code()"`
+							/*if (parserState.isEventAttribute === true)
 							{
-								// React.createElement("tag", {"attr":"value"
-								// React.DOM.tag({"attr":"value"
-								// TODO :: run transformScript if script event attribute
-								result.push( safeString(node.value) );
+								// React.createElement("tag", {"onsomething":"code()"
+								// React.DOM.tag({"onsomething":"code()"
+								result.push( transformScript(node.value, options) );
 							}
-							else
+							else*/ if (parserState.isStyleAttribute === true)
 							{
 								// React.createElement("tag", {"style":{…}
 								// React.DOM.tag({"style":{…}
 								result.push( transformInlineStyles(node.value, options) );
+							}
+							else
+							{
+								// React.createElement("tag", {"attr":"value"
+								// React.DOM.tag({"attr":"value"
+								result.push( safeString(node.value) );
 							}
 						}
 					}
@@ -330,6 +315,8 @@ compiler.prototype.compile = function(str)
 		}
 	}
 	
+	//console.log(str);
+	//console.log(nodeStack);
 	//console.log(result);
 	result = finalize(result, options);
 	//console.log(result);
