@@ -26,7 +26,7 @@ React.DOM.div(null,
 
 
 ## Installation
-[Node.js](http://nodejs.org/) `>= 0.10` is required. ~~Type this at the command line:~~
+[Node.js](http://nodejs.org/) `>= 0.12` is required. ~~Type this at the command line:~~
 ```shell
 npm install handlebars-react --save-dev
 ```
@@ -36,7 +36,12 @@ npm install handlebars-react --save-dev
 ### Server/Browserify
 ```js
 var HandlebarsReact = require("handlebars-react");
-var result = new HandlebarsReact(options).compile("<h1>{{title}}</h1>");
+
+new HandlebarsReact(options)
+.compile("<h1>{{title}}</h1>")
+.then( function(result) {
+	console.log("done!");
+});
 ```
 ### UMD/AMD/etc
 Accessible via `define()` or `window.HandlebarsReact`.
@@ -46,35 +51,46 @@ Accessible via `define()` or `window.HandlebarsReact`.
 
 ### options.beautify
 Type: `Boolean`  
-Default value: `true`  
+Default value: `false`  
 When `true`, output will be formatted for increased legibility.
 
+### options.env
+Type: `String`  
+Default value: `undefined`  
+[Option presets](https://github.com/stevenvachon/handlebars-react/blob/master/lib/parseOptions.js) for your target environment: `"development"` or `"production"`. Preset options can be overridden.
+
 ### options.normalizeWhitespace
-Type: `Boolean`  
-Default value: `true`  
-See [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
-
-### options.useDomMethods
-Type: `Boolean`  
-Default value: `true`  
-When `true`, available `React.DOM` convenience functions will be used instead of `React.createElement()`.
-
-### options.xmlMode
 Type: `Boolean`  
 Default value: `false`  
 See [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
 
+### options.processCSS
+Type: `Boolean`  
+Default value: `false`  
+See [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
+
+### options.processJS
+Type: `Boolean`  
+Default value: `false`  
+See [handlebars-html-parser](https://github.com/stevenvachon/handlebars-html-parser).
+
+### options.useDomMethods
+Type: `Boolean`  
+Default value: `false`  
+When `true`, available `React.DOM` convenience functions will be used instead of `React.createElement()`.
+
 
 ## Roadmap Features
+* make dom-style-parser use postcss instead of cssparse?
 * support `<template>`
 * `convertHbsComments` to JavaScript block comments (or HTML comments?)
 * `convertHtmlComments` to JavaScript block comments
 * `ignoreComments` option when React supports such ([react#2810](https://github.com/facebook/react/issues/2810))
-* `trimWhitespace` option to remove spaces between elements (`<tag/> a word <tag/>` to `<tag/>a word<tag/>`)?
+* `trimWhitespace` option to remove spaces between elements (`<tag> a word <tag>` to `<tag>a word<tag>`)?
 
 
 ## Changelog
-* 0.0.1–0.0.13 pre-releases
+* 0.0.1–0.0.14 pre-releases
 
 
 [npm-image]: https://img.shields.io/npm/v/handlebars-react.svg
