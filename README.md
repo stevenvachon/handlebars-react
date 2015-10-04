@@ -26,7 +26,7 @@ React.DOM.div(null,
 
 
 ## Installation
-[Node.js](http://nodejs.org/) `>= 0.12` is required. ~~Type this at the command line:~~
+[Node.js](http://nodejs.org/) `>= 0.10` is required. ~~Type this at the command line:~~
 ```shell
 npm install handlebars-react --save-dev
 ```
@@ -90,7 +90,7 @@ When `true`, available `React.DOM` convenience functions will be used instead of
 
 
 ## Changelog
-* 0.0.1–0.0.14 pre-releases
+* 0.0.1–0.0.15 pre-releases
 
 
 [npm-image]: https://img.shields.io/npm/v/handlebars-react.svg

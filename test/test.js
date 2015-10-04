@@ -8,6 +8,9 @@ var objectAssign = require("object-assign");
 
 chai.use( require("chai-as-promised") );
 
+// handlebars-html-parser uses native Promises (and thus, won't work on Node 0.10)
+global.Promise = require("bluebird");
+
 
 
 // https://facebook.github.io/react/jsx-compiler.html

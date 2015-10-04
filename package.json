@@ -1,7 +1,7 @@
 {
   "name": "handlebars-react",
   "description": "Compile Handlebars templates to React.",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "license": "MIT",
   "homepage": "https://github.com/stevenvachon/handlebars-react",
   "author": {
@@ -23,20 +23,22 @@
     "object-assign": "^4.0.1"
   },
   "devDependencies": {
+    "bluebird": "^2.10.2",
     "browserify": "^11.2.0",
     "chai": "^3.3.0",
     "mocha": "^2.3.3",
+    "mkdirp": "~0.5.1",
     "chai-as-promised": "^5.1.0",
     "react": "0.13.3",
     "uglify-js": "^2.4.24"
   },
   "engines": {
-    "node": ">= 0.12"
+    "node": ">= 0.10"
   },
   "scripts": {
-    "browserify": "mkdir browser && npm run browserify-full && npm run browserify-lite",
-    "browserify-full": "browserify ./ --standalone HandlebarsReact | uglifyjs --compress --mangle -o browser/handlebars-react.min.js",
-    "browserify-lite": "browserify ./ --standalone HandlebarsReact --exclude autoprefixer --exclude cssnano --exclude postcss --exclude uglify-js | uglifyjs --compress --mangle -o browser/handlebars-react-lite.min.js",
+    "browserify": "npm dedupe && mkdirp browser && npm run browserify-full && npm run browserify-lite",
+    "browserify-full": "browserify lib/ --standalone HandlebarsReact | uglifyjs --compress --mangle -o browser/handlebars-react.min.js",
+    "browserify-lite": "browserify lib/ --standalone HandlebarsReact --exclude autoprefixer --exclude cssnano --exclude postcss --exclude uglify-js | uglifyjs --compress --mangle -o browser/handlebars-react-lite.min.js",
     "react-dom": "node scripts/react-dom lib/ReactDOM.js",
     "test": "npm run react-dom && npm run browserify && npm run test-server",
     "test-server": "mocha test/ --reporter spec --check-leaks --bail --no-exit"
