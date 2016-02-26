@@ -1,4 +1,5 @@
 # handlebars-react [![NPM Version][npm-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency Status][david-image]][david-url]
+
 > Compile Handlebars templates to [React](https://facebook.github.io/react/).
 
 Compile this:
@@ -26,23 +27,23 @@ React.DOM.div(null,
 
 
 ## Installation
-[Node.js](http://nodejs.org/) `>= 0.10` is required. ~~Type this at the command line:~~
+[Node.js](http://nodejs.org/) `>= 5` is required; `< 5.0` will need an ES6 compiler. ~~Type this at the command line:~~
 ```shell
-npm install handlebars-react --save-dev
+npm install handlebars-react
 ```
 
 
 ## Usage
+
 ### Server/Browserify
 ```js
 var HandlebarsReact = require("handlebars-react");
 
 new HandlebarsReact(options)
 .compile("<h1>{{title}}</h1>")
-.then( function(result) {
-	console.log("done!");
-});
+.then(result => console.log("done!"));
 ```
+
 ### UMD/AMD/etc
 Accessible via `define()` or `window.HandlebarsReact`.
 
@@ -81,8 +82,6 @@ When `true`, available `React.DOM` convenience functions will be used instead of
 
 
 ## Roadmap Features
-* make dom-style-parser use postcss instead of cssparse?
-* support `<template>`
 * `convertHbsComments` to JavaScript block comments (or HTML comments?)
 * `convertHtmlComments` to JavaScript block comments
 * `ignoreComments` option when React supports such ([react#2810](https://github.com/facebook/react/issues/2810))
@@ -90,7 +89,7 @@ When `true`, available `React.DOM` convenience functions will be used instead of
 
 
 ## Changelog
-* 0.0.1–0.0.15 pre-releases
+* 0.0.1–0.0.16 pre-releases
 
 
 [npm-image]: https://img.shields.io/npm/v/handlebars-react.svg

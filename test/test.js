@@ -4,12 +4,8 @@ var options  = require("../lib/parseOptions");
 
 var chai = require("chai");
 var expect = chai.expect;
-var objectAssign = require("object-assign");
 
 chai.use( require("chai-as-promised") );
-
-// handlebars-html-parser uses native Promises (and thus, won't work on Node 0.10)
-global.Promise = require("bluebird");
 
 
 
@@ -17,11 +13,11 @@ global.Promise = require("bluebird");
 
 
 
-describe("Basic HTML", function()
+describe("Basic HTML", () =>
 {
-	describe("with one top-level node", function()
+	describe("with one top-level node", () =>
 	{
-		it("should be supported", function()
+		it("should be supported", () =>
 		{
 			var result = new compiler( options() ).compile('<tag></tag>');
 			var expectedResult = 'React.createElement("tag")';
@@ -31,7 +27,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support an attribute", function()
+		it("should support an attribute", () =>
 		{
 			var result = new compiler( options() ).compile('<tag attr="value"></tag>');
 			var expectedResult = 'React.createElement("tag",{"attr":"value"})';
@@ -41,7 +37,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support attributes", function()
+		it("should support attributes", () =>
 		{
 			var result = new compiler( options() ).compile('<tag attr1="value1" attr-2="value2"></tag>');
 			var expectedResult = 'React.createElement("tag",{"attr1":"value1","attr-2":"value2"})';
@@ -51,7 +47,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support attributes and text content", function()
+		it("should support attributes and text content", () =>
 		{
 			var result = new compiler( options() ).compile('<tag attr1="value1" attr-2="value2">text</tag>');
 			var expectedResult = 'React.createElement("tag",{"attr1":"value1","attr-2":"value2"},"text")';
@@ -63,7 +59,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support nested tags", function()
+		it("should support nested tags", () =>
 		{
 			var result = new compiler( options() ).compile('<tag><tag></tag>text<tag></tag></tag>');
 			var expectedResult = 'React.createElement("tag",null,React.createElement("tag"),"text",React.createElement("tag"))';
@@ -73,7 +69,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support nested tags (#2)", function()
+		it("should support nested tags (#2)", () =>
 		{
 			var result = new compiler( options() ).compile('<tag>text<tag></tag>text</tag>');
 			var expectedResult = 'React.createElement("tag",null,"text",React.createElement("tag"),"text")';
@@ -83,7 +79,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support nested tags and a convenience function", function()
+		it("should support nested tags and a convenience function", () =>
 		{
 			var result = new compiler( options({ useDomMethods:true }) ).compile('<div><tag></tag>text<tag></tag></div>');
 			var expectedResult = 'React.DOM.div(null,React.createElement("tag"),"text",React.createElement("tag"))';
@@ -93,7 +89,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support nested tags and a convenience function (#2)", function()
+		it("should support nested tags and a convenience function (#2)", () =>
 		{
 			var result = new compiler( options({ useDomMethods:true }) ).compile('<div>text<tag></tag>text</div>');
 			var expectedResult = 'React.DOM.div(null,"text",React.createElement("tag"),"text")';
@@ -103,7 +99,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support nested tags and a convenience function (#3)", function()
+		it("should support nested tags and a convenience function (#3)", () =>
 		{
 			var result = new compiler( options({ useDomMethods:true }) ).compile('<div><div>text</div><tag>text</tag></div>');
 			var expectedResult = 'React.DOM.div(null,React.DOM.div(null,"text"),React.createElement("tag",null,"text"))';
@@ -115,9 +111,9 @@ describe("Basic HTML", function()
 	
 	
 	// NOTE :: this is not supported by React, but it's here for completeness
-	describe("with multiple top-level nodes", function()
+	describe("with multiple top-level nodes", () =>
 	{
-		it("should be supported", function()
+		it("should be supported", () =>
 		{
 			var result = new compiler( options({ multipleTopLevelNodes:true }) ).compile('<tag></tag><tag></tag>');
 			var expectedResult = '[React.createElement("tag"),React.createElement("tag")]';
@@ -127,7 +123,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support attributes and text content", function()
+		it("should support attributes and text content", () =>
 		{
 			var result = new compiler( options({ multipleTopLevelNodes:true }) ).compile('<tag attr="value">text</tag> <tag attr1="value1" attr-2="value2">text</tag>');
 			var expectedResult = '[React.createElement("tag",{"attr":"value"},"text")," ",React.createElement("tag",{"attr1":"value1","attr-2":"value2"},"text")]';
@@ -137,7 +133,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support nested tags", function()
+		it("should support nested tags", () =>
 		{
 			var result = new compiler( options({ multipleTopLevelNodes:true, useDomMethods:true }) ).compile('<tag><tag></tag>text<tag></tag></tag> <tag>text<tag></tag>text</tag>');
 			var expectedResult = '[React.createElement("tag",null,React.createElement("tag"),"text",React.createElement("tag"))," ",React.createElement("tag",null,"text",React.createElement("tag"),"text")]';
@@ -147,7 +143,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support nested tags and a convenience function", function()
+		it("should support nested tags and a convenience function", () =>
 		{
 			var result = new compiler( options({ multipleTopLevelNodes:true, useDomMethods:true }) ).compile('<div><tag></tag>text<tag></tag></div> <div>text<tag></tag>text</div>');
 			var expectedResult = '[React.DOM.div(null,React.createElement("tag"),"text",React.createElement("tag"))," ",React.DOM.div(null,"text",React.createElement("tag"),"text")]';
@@ -158,9 +154,9 @@ describe("Basic HTML", function()
 	
 	
 	
-	describe("edge cases", function()
+	describe("edge cases", () =>
 	{
-		it("should support text content with special characters", function()
+		it("should support text content with special characters", () =>
 		{
 			var result = new compiler( options() ).compile('<tag>"text©&copy;&nbsp;"</tag>');
 			var expectedResult = 'React.createElement("tag",null,"\\\"text©© \\\"")';
@@ -170,7 +166,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support <script> tags", function()
+		it("should support <script> tags", () =>
 		{
 			var result = new compiler( options() ).compile('<script>function a(arg){ b(arg,"arg") }</script>');
 			var expectedResult = 'React.createElement("script",null,"function a(arg){ b(arg,\\\"arg\\\") }")';
@@ -180,7 +176,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support unrecognized <script> tags", function()
+		it("should support unrecognized <script> tags", () =>
 		{
 			var result = new compiler( options() ).compile('<script type="text/template"><tag attr=\"value\">text</tag></script>');
 			var expectedResult = 'React.createElement("script",{"type":"text/template"},"<tag attr=\\\"value\\\">text</tag>")';
@@ -190,18 +186,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		// TODO :: parse as text?
-		it.skip("should support <template> tags", function()
-		{
-			var result = new compiler( options() ).compile('<template><tag attr=\"value\">text</tag></template>');
-			var expectedResult = 'React.createElement("template",null,"<tag attr=\\\"value\\\">text</tag>")';
-			
-			return expect(result).to.eventually.deep.equal(expectedResult);
-		});
-		
-		
-		
-		it("should support <style> tags", function()
+		it("should support <style> tags", () =>
 		{
 			var result = new compiler( options() ).compile('<style>html { background-color:gray }</style>');
 			var expectedResult = 'React.createElement("style",null,"html { background-color:gray }")';
@@ -211,7 +196,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("should support style attributes", function()
+		it("should support style attributes", () =>
 		{
 			var result = new compiler( options() ).compile('<div style="background-color:gray"></div>');
 			var expectedResult = 'React.createElement("div",{"style":{"backgroundColor":"gray"}})';
@@ -222,9 +207,9 @@ describe("Basic HTML", function()
 	
 	
 	
-	describe("options", function()
+	describe("options", () =>
 	{
-		it("beautify = true", function()
+		it("beautify = true", () =>
 		{
 			var result = new compiler( options({ beautify:true }) ).compile('<tag attr1="value1" attr-2="value2">text</tag>');
 			
@@ -239,7 +224,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("normalizeWhitespace = true", function()
+		it("normalizeWhitespace = true", () =>
 		{
 			var result = new compiler( options({ normalizeWhitespace:true }) ).compile('<tag>text©&copy; &nbsp;  </tag>');
 			var expectedResult = 'React.createElement("tag",null,"text©©   ")';  // non-breaking space remains
@@ -249,7 +234,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("processCSS = true", function()
+		it("processCSS = true", () =>
 		{
 			var result = new compiler( options({ processCSS:true }) ).compile('<style>\ndiv\n{\n\tproperty: value;\n}\n</style>');
 			var expectedResult = 'React.createElement("style",null,"div{property:value}")';
@@ -259,7 +244,7 @@ describe("Basic HTML", function()
 		
 		
 		
-		it("processJS = true", function()
+		it("processJS = true", () =>
 		{
 			var result = new compiler( options({ processJS:true }) ).compile('<script>\nfunction funcA (arg)\n{\n\tfuncB(arg, "arg");\n}\n</script>');
 			var expectedResult = 'React.createElement("script",null,"function funcA(n){funcB(n,\\\"arg\\\")}")';

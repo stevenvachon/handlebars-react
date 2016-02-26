@@ -1,7 +1,7 @@
 {
   "name": "handlebars-react",
   "description": "Compile Handlebars templates to React.",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "license": "MIT",
   "homepage": "https://github.com/stevenvachon/handlebars-react",
   "author": {
@@ -18,33 +18,35 @@
     "url": "https://github.com/stevenvachon/handlebars-react/issues"
   },
   "dependencies": {
-    "dom-style-parser": "^1.0.0",
     "handlebars-html-parser": "git://github.com/stevenvachon/handlebars-html-parser.git",
-    "object-assign": "^4.0.1"
+    "postcss": "^5.0.17",
+    "postcss-js": "~0.1.2",
+    "react": "0.14.7"
   },
   "devDependencies": {
-    "bluebird": "^2.10.2",
-    "browserify": "^11.2.0",
-    "chai": "^3.3.0",
-    "mocha": "^2.3.3",
+    "browserify": "^13.0.0",
+    "chai": "^3.5.0",
+    "chai-as-promised": "^5.2.0",
     "mkdirp": "~0.5.1",
-    "chai-as-promised": "^5.1.0",
-    "react": "0.13.3",
-    "uglify-js": "^2.4.24"
+    "mocha": "^2.4.5",
+    "uglify-js": "^2.6.2"
   },
   "engines": {
-    "node": ">= 0.10"
+    "node": ">=5"
   },
   "scripts": {
     "browserify": "npm dedupe && mkdirp browser && npm run browserify-full && npm run browserify-lite",
-    "browserify-full": "browserify lib/ --standalone HandlebarsReact | uglifyjs --compress --mangle -o browser/handlebars-react.min.js",
-    "browserify-lite": "browserify lib/ --standalone HandlebarsReact --exclude autoprefixer --exclude cssnano --exclude postcss --exclude uglify-js | uglifyjs --compress --mangle -o browser/handlebars-react-lite.min.js",
+    "browserify-full": "browserify lib/ --standalone HandlebarsReact --exclude any-promise | uglifyjs --compress --mangle -o browser/handlebars-react.min.js",
+    "browserify-lite": "browserify lib/ --standalone HandlebarsReact --exclude any-promise --exclude autoprefixer --exclude cssnano --exclude uglify-js | uglifyjs --compress --mangle -o browser/handlebars-react-lite.min.js",
+    "install": "npm run react-dom",
     "react-dom": "node scripts/react-dom lib/ReactDOM.js",
-    "test": "npm run react-dom && npm run browserify && npm run test-server",
+    "test": "npm run test-server",
+    "test-browser": "npm run browserify",
     "test-server": "mocha test/ --reporter spec --check-leaks --bail --no-exit"
   },
   "files": [
     "lib",
+    "scripts",
     "license"
   ],
   "keywords": [
